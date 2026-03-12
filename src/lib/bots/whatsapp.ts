@@ -1,0 +1,247 @@
+import { Client, LocalAuth, MessageMedia } from 'whatsapp-web.js';
+import * as QRCode from 'qrcode';
+import { BotStatus, WhatsAppGroup, PostLog } from './types';
+import { Product } from '../types';
+import { generateAllCopies, buildAffiliateLink } from '../copywriter';
+
+class WhatsAppBot {
+  private client: Client | null = null;
+  private _status: BotStatus = 'disconnected';
+  private _qrCode: string | null = null;
+  private _groups: WhatsAppGroup[] = [];
+  private _connectedPhone: string | undefined;
+  private _logs: PostLog[] = [];
+  private _postedProductIds: Set<string> = new Set();
+
+  get status() { return this._status; }
+  get qrCode() { return this._qrCode; }
+  get groups() { return this._groups; }
+  get connectedPhone() { return this._connectedPhone; }
+  get logs() { return this._logs; }
+  get postedProductIds() { return Array.from(this._postedProductIds); }
+
+  async initialize(): Promise<void> {
+    if (this.client) {
+      await this.client.destroy().catch(() => {});
+    }
+
+    this._status = 'connecting';
+    this._qrCode = null;
+
+    this.client = new Client({
+      authStrategy: new LocalAuth({ dataPath: '.wwebjs_auth' }),
+      puppeteer: {
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--disable-gpu',
+        ],
+      },
+    });
+
+    this.client.on('qr', async (qr: string) => {
+      try {
+        this._qrCode = await QRCode.toDataURL(qr, { width: 300, margin: 2 });
+        this._status = 'qr_ready';
+      } catch (err) {
+        console.error('Erro ao gerar QR code:', err);
+      }
+    });
+
+    this.client.on('ready', async () => {
+      this._status = 'connected';
+      this._qrCode = null;
+      console.log('✅ WhatsApp Bot conectado!');
+
+      // Get phone info
+      const info = this.client?.info;
+      if (info) {
+        this._connectedPhone = info.wid.user;
+      }
+
+      // Load groups
+      await this.loadGroups();
+    });
+
+    this.client.on('disconnected', () => {
+      this._status = 'disconnected';
+      this._qrCode = null;
+      this._groups = [];
+      console.log('❌ WhatsApp Bot desconectado');
+    });
+
+    this.client.on('auth_failure', () => {
+      this._status = 'error';
+      console.error('❌ Falha na autenticação do WhatsApp');
+    });
+
+    try {
+      await this.client.initialize();
+    } catch (error) {
+      this._status = 'error';
+      console.error('Erro ao inicializar WhatsApp:', error);
+    }
+  }
+
+  async loadGroups(): Promise<WhatsAppGroup[]> {
+    if (!this.client || this._status !== 'connected') {
+      return [];
+    }
+
+    try {
+      const chats = await this.client.getChats();
+      const groupChats = chats.filter(chat => chat.isGroup);
+
+      this._groups = await Promise.all(
+        groupChats.map(async (chat) => {
+          const groupChat = chat as unknown as {
+            id: { _serialized: string };
+            name: string;
+            participants: Array<{ id: { _serialized: string }; isAdmin: boolean }>;
+          };
+
+          const myId = this.client?.info?.wid?._serialized || '';
+          const me = groupChat.participants?.find(
+            (p) => p.id._serialized === myId
+          );
+
+          return {
+            id: groupChat.id._serialized,
+            name: chat.name,
+            participantsCount: groupChat.participants?.length || 0,
+            isAdmin: me?.isAdmin || false,
+            categories: ['todos'],
+          };
+        })
+      );
+
+      return this._groups;
+    } catch (error) {
+      console.error('Erro ao carregar grupos:', error);
+      return [];
+    }
+  }
+
+  async sendToGroup(
+    groupId: string,
+    product: Product,
+    template: 'aida' | 'pas' | 'bab',
+    affiliateConfig: { mercadolivreId: string; shopeeId: string }
+  ): Promise<PostLog> {
+    const log: PostLog = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      platform: 'whatsapp',
+      productTitle: product.title,
+      groupName: this._groups.find(g => g.id === groupId)?.name || groupId,
+      status: 'success',
+      timestamp: new Date().toISOString(),
+    };
+
+    if (!this.client || this._status !== 'connected') {
+      log.status = 'error';
+      log.message = 'Bot não está conectado';
+      this._logs.unshift(log);
+      return log;
+    }
+
+    try {
+      const affiliateLink = buildAffiliateLink(product, affiliateConfig);
+      const copies = generateAllCopies(product, affiliateLink);
+      const templateCopies = copies[template];
+      const whatsappCopy = templateCopies.find(c => c.platform === 'whatsapp');
+
+      if (!whatsappCopy) {
+        throw new Error('Template de WhatsApp não encontrado');
+      }
+
+      // Try to send with image
+      if (product.image && product.image.startsWith('http')) {
+        try {
+          const media = await MessageMedia.fromUrl(product.image, {
+            unsafeMime: true,
+          });
+          await this.client.sendMessage(groupId, media, {
+            caption: whatsappCopy.body,
+          });
+        } catch {
+          // Fallback: send text only
+          await this.client.sendMessage(groupId, whatsappCopy.body);
+        }
+      } else {
+        await this.client.sendMessage(groupId, whatsappCopy.body);
+      }
+
+      log.status = 'success';
+      log.message = 'Mensagem enviada com sucesso';
+      this._postedProductIds.add(product.id);
+    } catch (error) {
+      log.status = 'error';
+      log.message = error instanceof Error ? error.message : 'Erro desconhecido';
+    }
+
+    this._logs.unshift(log);
+    if (this._logs.length > 100) {
+      this._logs = this._logs.slice(0, 100);
+    }
+
+    return log;
+  }
+
+  async sendToMultipleGroups(
+    groupIds: string[],
+    product: Product,
+    template: 'aida' | 'pas' | 'bab',
+    affiliateConfig: { mercadolivreId: string; shopeeId: string }
+  ): Promise<PostLog[]> {
+    const logs: PostLog[] = [];
+
+    for (const groupId of groupIds) {
+      const log = await this.sendToGroup(groupId, product, template, affiliateConfig);
+      logs.push(log);
+
+      // Random delay between 2-5 seconds to simulate human behavior
+      const delay = 2000 + Math.random() * 3000;
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+
+    return logs;
+  }
+
+  isProductAlreadyPosted(productId: string): boolean {
+    return this._postedProductIds.has(productId);
+  }
+
+  clearPostedHistory(): void {
+    this._postedProductIds.clear();
+  }
+
+  async disconnect(): Promise<void> {
+    if (this.client) {
+      try {
+        await this.client.destroy();
+      } catch (error) {
+        console.error('Erro ao desconectar:', error);
+      }
+      this.client = null;
+      this._status = 'disconnected';
+      this._qrCode = null;
+      this._groups = [];
+    }
+  }
+
+  getState() {
+    return {
+      status: this._status,
+      qrCode: this._qrCode,
+      groups: this._groups,
+      connectedPhone: this._connectedPhone,
+    };
+  }
+}
+
+// Singleton
+export const whatsappBot = new WhatsAppBot();

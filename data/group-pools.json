@@ -1,0 +1,16 @@
+[
+  {
+    "id": "pool_1773283112803",
+    "category": "informatica",
+    "groups": [
+      {
+        "name": "https://chat.whatsapp.com/test1",
+        "inviteLink": "250",
+        "maxCapacity": 250,
+        "id": "group_1773283144576",
+        "isActive": true,
+        "memberCount": 0
+      }
+    ]
+  }
+]
