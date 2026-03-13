@@ -106,7 +106,11 @@ export default function Home() {
               <p style={{ fontSize: '0.8rem', color: '#999', marginTop: '0.5rem' }}>Novas promoções são adicionadas diariamente!</p>
             </div>
           ) : (
-            <div className="products-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
+            <div className="products-grid" style={{ 
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)', 
+              gap: '1.5rem' 
+            }}>
               {promotions.map((promo) => (
                 <ProductCardPublic key={promo.id} product={promo.product} id={promo.id} />
               ))}
