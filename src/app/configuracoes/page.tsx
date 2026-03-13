@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getSettings, saveSettings, AffiliateConfig } from '@/lib/settings';
 
 export default function Configuracoes() {
   const [mlId, setMlId] = useState('');
@@ -10,24 +11,44 @@ export default function Configuracoes() {
   const [amazonAccessKey, setAmazonAccessKey] = useState('');
   const [amazonSecretKey, setAmazonSecretKey] = useState('');
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const saved = localStorage.getItem('affiliateConfig');
-    if (saved) {
+    async function loadConfig() {
       try {
-        const config = JSON.parse(saved);
-        setMlId(config.mercadolivreId || '');
-        setShopeeId(config.shopeeId || '');
-        setAliexpressId(config.aliexpressId || '');
-        setAmazonId(config.amazonId || '');
-        setAmazonAccessKey(config.amazonAccessKey || '');
-        setAmazonSecretKey(config.amazonSecretKey || '');
-      } catch {}
+        // Try Supabase first
+        const config = await getSettings();
+        if (config) {
+          setMlId(config.mercadolivreId || '');
+          setShopeeId(config.shopeeId || '');
+          setAliexpressId(config.aliexpressId || '');
+          setAmazonId(config.amazonId || '');
+          setAmazonAccessKey(config.amazonAccessKey || '');
+          setAmazonSecretKey(config.amazonSecretKey || '');
+        } else {
+          // Fallback to localStorage if Supabase has nothing
+          const local = localStorage.getItem('affiliateConfig');
+          if (local) {
+            const parsed = JSON.parse(local);
+            setMlId(parsed.mercadolivreId || '');
+            setShopeeId(parsed.shopeeId || '');
+            setAliexpressId(parsed.aliexpressId || '');
+            setAmazonId(parsed.amazonId || '');
+            setAmazonAccessKey(parsed.amazonAccessKey || '');
+            setAmazonSecretKey(parsed.amazonSecretKey || '');
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load settings:', error);
+      } finally {
+        setLoading(false);
+      }
     }
+    loadConfig();
   }, []);
 
-  const handleSave = () => {
-    const config = {
+  const handleSave = async () => {
+    const config: AffiliateConfig = {
       mercadolivreId: mlId.trim(),
       shopeeId: shopeeId.trim(),
       aliexpressId: aliexpressId.trim(),
@@ -35,9 +56,17 @@ export default function Configuracoes() {
       amazonAccessKey: amazonAccessKey.trim(),
       amazonSecretKey: amazonSecretKey.trim(),
     };
-    localStorage.setItem('affiliateConfig', JSON.stringify(config));
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    
+    try {
+      // Save to both for reliability
+      localStorage.setItem('affiliateConfig', JSON.stringify(config));
+      await saveSettings(config);
+      
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (error) {
+      alert('Erro ao salvar as configurações no banco de dados.');
+    }
   };
 
   return (
