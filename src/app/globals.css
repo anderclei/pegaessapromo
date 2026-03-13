@@ -1896,7 +1896,7 @@ body::before {
   background-color: #000000;
   color: #ffffff;
   padding: 0;
-  height: 80px;
+  height: 64px;
   display: flex;
   align-items: center;
 }
