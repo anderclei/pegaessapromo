@@ -6,94 +6,122 @@ function generateId(): string {
   return Math.random().toString(36).substring(2, 15);
 }
 
+const MUSICAL_INSTRUMENTS_URL = 'https://www.amazon.com.br/gp/bestsellers/musical-instruments/';
+
 export async function scrapeAmazon(category: string = 'todos'): Promise<Product[]> {
   try {
-    const q = encodeURIComponent(category !== 'todos' ? category : 'ofertas do dia');
-    const url = `https://www.amazon.com.br/s?k=${q}`;
+    const url = MUSICAL_INSTRUMENTS_URL;
     
-    // Amazon is also very sensitive to scraping, but sometimes base axios works with proper headers
     const { data } = await axios.get(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
         'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
       },
-      timeout: 10000,
+      timeout: 15000,
     });
 
     const $ = cheerio.load(data);
     const products: Product[] = [];
 
-    $('.s-result-item[data-component-type="s-search-result"]').each((i, el) => {
-      if (products.length >= 15) return;
+    // Best Sellers Grid Selector
+    $('.zg-grid-general-faceout, [id^="post-"]').each((i, el) => {
+      if (products.length >= 10) return;
 
       const $el = $(el);
-      const title = $el.find('h2 a span').text().trim();
-      const priceWhole = $el.find('.a-price-whole').first().text().trim();
-      const priceFraction = $el.find('.a-price-fraction').first().text().trim();
-      const image = $el.find('img.s-image').attr('src');
-      const link = $el.find('h2 a').attr('href');
-      const rating = parseFloat($el.find('i.a-icon-star-small span.a-icon-alt').text().split(' ')[0]);
-      const reviews = parseInt($el.find('span.a-size-base.s-underline-text').text().replace(/[^\d]/g, ''));
+      const title = $el.find('div.p13n-sc-truncate, .p13n-sc-truncate-desktop-type2').text().trim() || 
+                    $el.find('img').attr('alt') || '';
+      
+      const priceText = $el.find('.a-price .a-offscreen').first().text().trim() || 
+                        $el.find('.p13n-sc-price, .a-size-base.a-color-price').text().trim();
+      
+      const originalPriceText = $el.find('.a-price.a-text-price .a-offscreen').first().text().trim();
+      
+      const image = $el.find('img').attr('src');
+      const relativeLink = $el.find('a.a-link-normal').attr('href');
+      
+      const ratingText = $el.find('.a-icon-star-small .a-icon-alt, .a-icon-star .a-icon-alt').text().trim();
+      const reviewsText = $el.find('span.a-size-small').text().trim();
 
-      if (title && priceWhole) {
-        const price = parseFloat(priceWhole.replace(/[^\d]/g, '') + '.' + priceFraction);
+      if (title && (priceText || relativeLink)) {
+        // Parse price: "R$ 1.234,56" -> 1234.56
+        const price = parseFloat(priceText.replace('R$', '').replace('.', '').replace(',', '.').trim()) || 0;
+        const originalPrice = originalPriceText ? parseFloat(originalPriceText.replace('R$', '').replace('.', '').replace(',', '.').trim()) : undefined;
+        
+        const rating = parseFloat(ratingText.split(' ')[0]) || 4.5;
+        const reviews = parseInt(reviewsText.replace(/[^\d]/g, '')) || 0;
+
+        let discount: number | undefined = undefined;
+        if (originalPrice && originalPrice > price) {
+          discount = Math.round(((originalPrice - price) / originalPrice) * 100);
+        }
+
         products.push({
           id: generateId(),
           title,
-          price: price || 0,
+          price: price,
+          originalPrice: originalPrice,
           image: image || '',
-          rating: rating || 4.5,
-          sales: Math.floor(Math.random() * 5000) + 100,
-          reviews: reviews || 0,
-          category: category !== 'todos' ? category : 'geral',
+          rating: rating,
+          sales: Math.floor(Math.random() * 2000) + 500,
+          reviews: reviews,
+          category: 'instrumentos_musicais',
           platform: 'amazon',
-          url: `https://www.amazon.com.br${link}`,
-          freeShipping: $el.find('.a-icon-prime').length > 0,
+          url: relativeLink?.startsWith('http') ? relativeLink : `https://www.amazon.com.br${relativeLink}`,
+          freeShipping: true,
+          discount: discount,
         });
       }
     });
 
-    if (products.length === 0) return getSampleAmazonProducts(category);
+    if (products.length === 0) {
+      console.log(`Nenhum produto encontrado em ${url}`);
+      return getSampleAmazonProducts();
+    }
     return products;
   } catch (error) {
     console.error('Erro ao buscar Amazon:', error);
-    return getSampleAmazonProducts(category);
+    return getSampleAmazonProducts();
   }
 }
 
-function getSampleAmazonProducts(category: string): Product[] {
+async function scrapeBySearch(category: string): Promise<Product[]> {
+  // Disabling search for the niche focus to ensure only Best Sellers are shown
+  return getSampleAmazonProducts();
+}
+
+function getSampleAmazonProducts(): Product[] {
   const samples: Product[] = [
     {
       id: generateId(),
-      title: 'Echo Dot (5ª Geração) | Som vibrante com Alexa',
-      price: 386.10,
-      originalPrice: 429.00,
-      image: 'https://m.media-amazon.com/images/I/71u-mB99EGL._AC_SL1500_.jpg',
+      title: 'Teclado Musical Casio Casiotone CT-S100',
+      price: 699.00,
+      originalPrice: 850.00,
+      image: 'https://m.media-amazon.com/images/I/61VQXm7zUML._AC_SL1200_.jpg',
       rating: 4.8,
-      sales: 105000,
-      reviews: 45000,
-      category: 'tecnologia',
+      sales: 5000,
+      reviews: 1200,
+      category: 'instrumentos_musicais',
       platform: 'amazon',
-      url: 'https://www.amazon.com.br/echo-dot-5-geracao-preta/dp/B09B8V1LZG',
+      url: 'https://www.amazon.com.br/Teclado-Casio-Casiotone-CT-S100-Preto/dp/B07X6M9C9K',
       freeShipping: true,
-      discount: 10,
+      discount: 17,
     },
     {
       id: generateId(),
-      title: 'Fritadeira a Ar Mondial, Family AFN-40-BI',
-      price: 349.00,
-      originalPrice: 499.00,
-      image: 'https://m.media-amazon.com/images/I/71PQuX0F3dL._AC_SL1500_.jpg',
-      rating: 4.9,
-      sales: 85000,
-      reviews: 28000,
-      category: 'casa',
+      title: 'Violão Acústico Nylon Giannini Start N-14',
+      price: 389.00,
+      originalPrice: 450.00,
+      image: 'https://m.media-amazon.com/images/I/61mR8C5Gq8L._AC_SL1500_.jpg',
+      rating: 4.7,
+      sales: 8000,
+      reviews: 2500,
+      category: 'instrumentos_musicais',
       platform: 'amazon',
-      url: 'https://www.amazon.com.br/Air-Fryer-Mondial-AFN-40-BI-Inox/dp/B08X6K6K6K',
+      url: 'https://www.amazon.com.br/Viol%C3%A3o-Ac%C3%BAstico-Gianini-Nylon-N14/dp/B00S0T3H0G',
       freeShipping: true,
-      discount: 30,
+      discount: 13,
     }
   ];
-  return samples.filter(p => category === 'todos' || p.category === category);
+  return samples;
 }

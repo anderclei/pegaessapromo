@@ -8,7 +8,7 @@ export interface Product {
   sales: number;
   reviews: number;
   category: string;
-  platform: 'mercadolivre' | 'shopee';
+  platform: 'mercadolivre' | 'shopee' | 'aliexpress' | 'amazon' | 'lomadee' | 'awin' | 'rakuten';
   url: string;
   seller?: string;
   discount?: number;
@@ -48,10 +48,15 @@ export interface CopyTemplate {
   generate: (product: Product, affiliateLink: string) => CopyResult[];
 }
 
-export type Category = 
-  | 'tecnologia'
-  | 'mulher'
-  | 'casa'
-  | 'eletronicos'
-  | 'foto_video'
-  | 'todos';
+export type Category = 'todos' | 'instrumentos_musicais';
+
+export interface Promotion {
+  id: string;
+  product: Product;
+  affiliateLink: string;
+  createdAt: string;
+}
+
+export interface PromotionStore {
+  [id: string]: Promotion;
+}

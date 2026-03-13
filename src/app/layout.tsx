@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import HeaderWrapper from "@/components/HeaderWrapper";
 
 export const metadata: Metadata = {
   title: "Pega Essa Promo! — Ofertas Quentes + Copys para Afiliados",
@@ -14,18 +15,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body>
-        <header className="header">
-          <div className="header-inner">
-            <a href="/" className="logo">
-              <img src="/logo.png" alt="Pega Essa Promo!" className="logo-image" />
-            </a>
-            <nav className="header-nav">
-              <a href="/" className="nav-link active">📊 Dashboard</a>
-              <a href="/bots" className="nav-link">🤖 Bots</a>
-              <a href="/configuracoes" className="nav-link">⚙️ Configurações</a>
-            </nav>
-          </div>
-        </header>
+        <HeaderWrapper />
         {children}
       </body>
     </html>

@@ -1,398 +1,150 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { Product, Category, Platform } from '@/lib/types';
-import { generateAllCopies, buildAffiliateLink, COPY_TEMPLATES } from '@/lib/copywriter';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { Product, Promotion } from '@/lib/types';
+import ProductCarousel from '@/components/ProductCarousel';
 
-const CATEGORIES: { value: Category; label: string; icon: string }[] = [
-  { value: 'todos', label: 'Todos', icon: '🌐' },
-  { value: 'tecnologia', label: 'Tecnologia', icon: '💻' },
-  { value: 'mulher', label: 'Mulher', icon: '👗' },
-  { value: 'casa', label: 'Casa', icon: '🏠' },
-  { value: 'eletronicos', label: 'Eletrônicos', icon: '📱' },
-  { value: 'foto_video', label: 'Foto e Vídeo', icon: '📸' },
-];
-
-const getPlatformDetails = (p: string) => {
-  switch (p) {
-    case 'mercadolivre': return { icon: '🟡', label: 'M. Livre', color: '#FFE600', textColor: '#2D3277' };
-    case 'shopee': return { icon: '🟠', label: 'Shopee', color: '#EE4D2D', textColor: '#FFF' };
-    case 'aliexpress': return { icon: '🔴', label: 'AliExpress', color: '#E62E04', textColor: '#FFF' };
-    case 'amazon': return { icon: '🟡', label: 'Amazon', color: '#FF9900', textColor: '#FFF' };
-    case 'lomadee': return { icon: '🔵', label: 'Lomadee', color: '#00A8FF', textColor: '#FFF' };
-    case 'awin': return { icon: '🔵', label: 'Awin', color: '#00CCFF', textColor: '#FFF' };
-    case 'rakuten': return { icon: '🔴', label: 'Rakuten', color: '#BF0000', textColor: '#FFF' };
-    default: return { icon: '🌐', label: p, color: '#666', textColor: '#FFF' };
+const getStoreLogo = (platform: string) => {
+  switch (platform) {
+    case 'amazon': return '/logos/amazon.jpg';
+    case 'shopee': return '/logos/shopee.jpg';
+    case 'mercadolivre': return '/logos/mercadolivre.png';
+    default: return '/logos/amazon.jpg';
   }
 };
 
-const formatPrice = (price: number) => {
-  return price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-};
+const ProductCardPublic = ({ product, id }: { product: Product; id?: string }) => {
+  const storeLogo = getStoreLogo(product.platform);
+  // If id exists, it's a promotion (has a bridge page). If not, we could link to amazon directly.
+  // For the storefront, we prefer linking to the bridge page for branding.
+  const href = id ? `/p/${id}` : '#'; 
 
-const ProductCard = ({ product, onSelect, onCopy, copied }: { product: Product; onSelect: (p: Product) => void; onCopy: (p: Product) => void; copied: boolean }) => {
-  const details = getPlatformDetails(product.platform);
-  
   return (
-    <div className="product-card border-glow" onClick={() => onSelect(product)}>
-      <div className="product-image-container">
-        <img src={product.image} alt={product.title} className="product-image" loading="lazy" />
-        <div className="product-platform-badge" style={{ backgroundColor: details.color, color: details.textColor }}>
-          <span className="platform-icon">{details.icon}</span>
-          {details.label}
-        </div>
-        {product.discount && (
-          <div className="product-discount-badge">-{product.discount}%</div>
-        )}
-      </div>
-      <div className="product-card-body">
-        <h3 className="product-title">{product.title}</h3>
-        <div className="product-meta">
-          <span className="product-rating">
-            ⭐ {product.rating.toFixed(1)}
-          </span>
-          <span className="product-sales">
-            📦 {product.sales.toLocaleString('pt-BR')} vendidos
-          </span>
-        </div>
-        <div className="product-price-row">
-          <span className="product-price">{formatPrice(product.price)}</span>
-          {product.originalPrice && (
-            <span className="product-original-price">{formatPrice(product.originalPrice)}</span>
-          )}
-        </div>
-        <div className="product-actions">
-          <button className="btn btn-primary" onClick={(e) => { e.stopPropagation(); onSelect(product); }}>
-            ✍️ Gerar Copy
-          </button>
-          <a
-            href={product.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-secondary"
-            onClick={(e) => e.stopPropagation()}
-          >
-            🔗 Ver Produto
-          </a>
+    <Link href={href} className="premium-card">
+      <div className="premium-card-image">
+        <img src={product.image} alt={product.title} />
+        {product.discount && <div className="discount-badge">-{product.discount}%</div>}
+        <div className="card-store-circle-sm" style={{ top: '10px', left: '10px', position: 'absolute', width: '28px', height: '28px' }}>
+           <img src={storeLogo} alt={product.platform} />
         </div>
       </div>
-    </div>
+      <div className="premium-card-body">
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: '#999', marginBottom: '4px' }}>
+           <span>📦 {product.sales.toLocaleString('pt-BR')}+ vendidos</span>
+        </div>
+        <h3 className="premium-card-title">{product.title}</h3>
+        <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+           <span className="premium-card-price">R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+           {product.originalPrice && product.originalPrice > product.price && (
+             <span style={{ fontSize: '0.8rem', color: '#999', textDecoration: 'line-through' }}>
+                R$ {product.originalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+             </span>
+           )}
+        </div>
+        <div className="btn btn-primary" style={{ width: '100%', marginTop: '1rem', fontSize: '0.8rem', padding: '8px', textAlign: 'center' }}>
+           Ver Detalhes
+        </div>
+      </div>
+    </Link>
   );
 };
 
 export default function Home() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [platform, setPlatform] = useState<Platform>('todos');
-  const [category, setCategory] = useState<Category>('todos');
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [activeTemplate, setActiveTemplate] = useState('aida');
-  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
-  const [affiliateConfig, setAffiliateConfig] = useState({ 
-    mercadolivreId: '', 
-    shopeeId: '',
-    aliexpressId: '',
-    amazonId: '',
-    lomadeeId: '',
-    awinId: '',
-    rakutenId: ''
-  });
-
-  const fetchProducts = useCallback(async () => {
-    setLoading(true);
-    try {
-      const promises: Promise<Response>[] = [];
-      if (platform === 'todos' || platform === 'mercadolivre') {
-        promises.push(fetch(`/api/mercadolivre?category=${category}`));
-      }
-      if (platform === 'todos' || platform === 'shopee') {
-        promises.push(fetch(`/api/shopee?category=${category}`));
-      }
-      if (platform === 'todos' || platform === 'aliexpress') {
-        promises.push(fetch(`/api/aliexpress?category=${category}`));
-      }
-      if (platform === 'todos' || platform === 'amazon') {
-        promises.push(fetch(`/api/amazon?category=${category}`));
-      }
-      if (platform === 'todos' || platform === 'lomadee') {
-        promises.push(fetch(`/api/lomadee?category=${category}`));
-      }
-      if (platform === 'todos' || platform === 'awin') {
-        promises.push(fetch(`/api/awin?category=${category}`));
-      }
-      if (platform === 'todos' || platform === 'rakuten') {
-        promises.push(fetch(`/api/rakuten?category=${category}`));
-      }
-
-      const responses = await Promise.all(promises);
-      const data = await Promise.all(responses.map(r => r.json()));
-
-      let allProducts: Product[] = [];
-      data.forEach(d => {
-        if (d.products) {
-          allProducts = [...allProducts, ...d.products];
-        }
-      });
-
-      // Sort by sales (trending)
-      allProducts.sort((a, b) => b.sales - a.sales);
-      setProducts(allProducts);
-    } catch (error) {
-      console.error('Erro ao buscar produtos:', error);
-    }
-    setLoading(false);
-  }, [platform, category]);
 
   useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
-
-  useEffect(() => {
-    const saved = localStorage.getItem('affiliateConfig');
-    if (saved) {
-      try { setAffiliateConfig(JSON.parse(saved)); } catch {}
+    async function fetchPromos() {
+      try {
+        // Fetch promotions (this uses getLatestPromotions via a mock or internal API if we had one)
+        // For now, let's fetch from our local promotions list
+        const res = await fetch('/api/promotions');
+        const data = await res.json();
+        setPromotions(data);
+      } catch (error) {
+        console.error('Failed to fetch promotions:', error);
+      } finally {
+        setLoading(false);
+      }
     }
+    fetchPromos();
   }, []);
 
-  const handleCopy = async (text: string, index: number) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedIndex(index);
-      setTimeout(() => setCopiedIndex(null), 2000);
-    } catch {
-      // Fallback
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      setCopiedIndex(index);
-      setTimeout(() => setCopiedIndex(null), 2000);
-    }
-  };
-
-  const getCopies = () => {
-    if (!selectedProduct) return [];
-    const link = buildAffiliateLink(selectedProduct, affiliateConfig);
-    const all = generateAllCopies(selectedProduct, link);
-    return all[activeTemplate as keyof typeof all] || [];
-  };
-
-  const formatPrice = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-  const totalSales = products.reduce((sum, p) => sum + p.sales, 0);
-  const avgRating = products.length > 0
-    ? (products.reduce((sum, p) => sum + p.rating, 0) / products.length).toFixed(1)
-    : '0';
-
   return (
-    <main className="main-container">
-      {/* Hero */}
-      <section className="hero-compact">
-        <div className="hero-top">
-          <img src="/logo.png" alt="Pega Essa Promo!" className="hero-logo-compact" />
-          <div className="hero-info">
-            <h1>
-              Descubra os <span className="gradient-text">Produtos Quentes</span><br/>
-              e Gere Copys que Vendem
-            </h1>
-            <p className="hero-desc-compact">
-              Analise os mais vendidos do Mercado Livre e Shopee. Gere copys persuasivos com seu link de afiliado.
-            </p>
-          </div>
-        </div>
-      </section>
+    <div className="landing-wrapper">
+      <div className="catalogue-container">
+        {/* Carousel Section */}
+        {promotions.length > 0 && (
+          <section className="featured-section" style={{ marginBottom: '3rem' }}>
+            <h2 className="section-title" style={{ marginBottom: '1.5rem', fontSize: '1.8rem', fontWeight: 800 }}>⭐ Destaques Imperdíveis</h2>
+            <ProductCarousel promotions={promotions} />
+          </section>
+        )}
 
-      {/* Stats */}
-      <div className="stats-bar">
-        <div className="stat-item">
-          <span className="stat-icon">📦</span>
-          <div>
-            <div className="stat-value">{products.length}</div>
-            <div className="stat-label">Produtos</div>
+        {/* Catalog Section */}
+        <section className="dashboard-grid">
+          <div className="section-header" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+             <div>
+                <h2 className="section-title" style={{ color: '#333', fontSize: '1.5rem' }}>🎸 Catálogo de Instrumentos</h2>
+                <p className="section-subtitle" style={{ color: '#666' }}>O melhor da música com os melhores preços</p>
+             </div>
+             <div className="filter-count" style={{ fontSize: '0.9rem', color: '#999' }}>
+                {promotions.length} produtos encontrados
+             </div>
           </div>
-        </div>
-        <div className="stat-item">
-          <span className="stat-icon">🔥</span>
-          <div>
-            <div className="stat-value">{totalSales.toLocaleString('pt-BR')}</div>
-            <div className="stat-label">Vendas Total</div>
-          </div>
-        </div>
-        <div className="stat-item">
-          <span className="stat-icon">⭐</span>
-          <div>
-            <div className="stat-value">{avgRating}</div>
-            <div className="stat-label">Nota Média</div>
-          </div>
-        </div>
-        <div className="stat-item">
-          <span className="stat-icon">📋</span>
-          <div>
-            <div className="stat-value">3</div>
-            <div className="stat-label">Templates</div>
-          </div>
-        </div>
+
+          {loading ? (
+            <div className="loading-container" style={{ padding: '4rem 0' }}>
+              <div className="spinner" />
+              <div className="loading-text" style={{ color: '#666' }}>Carregando catálogo...</div>
+            </div>
+          ) : promotions.length === 0 ? (
+            <div className="empty-state" style={{ padding: '4rem 0', background: 'white', borderRadius: '1rem', textAlign: 'center' }}>
+              <div className="empty-state-icon" style={{ fontSize: '3rem', marginBottom: '1rem' }}>📭</div>
+              <p style={{ color: '#666' }}>Nenhum produto no catálogo no momento.</p>
+              <p style={{ fontSize: '0.8rem', color: '#999', marginTop: '0.5rem' }}>Novas promoções são adicionadas diariamente!</p>
+            </div>
+          ) : (
+            <div className="products-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
+              {promotions.map((promo) => (
+                <ProductCardPublic key={promo.id} product={promo.product} id={promo.id} />
+              ))}
+            </div>
+          )}
+        </section>
       </div>
 
-      {/* Filters */}
-      <section className="filters-section">
-        <div className="filters-row">
-          <div className="filter-group">
-            <label className="filter-label">Plataforma</label>
-            <div className="platform-tabs">
-              {[
-                { id: 'todos', label: 'Todas', icon: '🌐' },
-                { id: 'mercadolivre', label: 'M. Livre', icon: '🟡' },
-                { id: 'shopee', label: 'Shopee', icon: '🟠' },
-                { id: 'aliexpress', label: 'AliExpress', icon: '🔴' },
-                { id: 'amazon', label: 'Amazon', icon: '🟡' },
-                { id: 'lomadee', label: 'Lomadee', icon: '🔵' },
-                { id: 'awin', label: 'Awin', icon: '🔵' },
-                { id: 'rakuten', label: 'Rakuten', icon: '🔴' },
-              ].map((p) => (
-                <button
-                  key={p.id}
-                  className={`platform-tab ${platform === p.id ? 'active' : ''}`}
-                  onClick={() => setPlatform(p.id as Platform)}
-                >
-                  <span className="platform-icon">{p.icon}</span>
-                  {p.label}
-                </button>
-              ))}
+      <footer className="site-footer">
+         <div className="footer-top">
+            <span className="footer-label">Siga nas redes sociais:</span>
+            <div className="social-links">
+               <a href="#"><img src="https://img.icons8.com/ios-filled/50/ffffff/instagram-new.png" width="30" alt="Instagram" /></a>
+               <a href="#"><img src="https://img.icons8.com/ios-filled/50/ffffff/telegram-app.png" width="30" alt="Telegram" /></a>
+               <a href="#"><img src="https://img.icons8.com/ios-filled/50/ffffff/tiktok.png" width="30" alt="TikTok" /></a>
             </div>
-          </div>
-        </div>
-        <div className="category-filters">
-          {CATEGORIES.map(cat => (
-            <button
-              key={cat.value}
-              className={`category-btn ${category === cat.value ? 'active' : ''}`}
-              onClick={() => setCategory(cat.value)}
-            >
-              {cat.icon} {cat.label}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {/* Products */}
-      {loading ? (
-        <div className="loading-container">
-          <div className="spinner" />
-          <div className="loading-text">Buscando produtos quentes...</div>
-        </div>
-      ) : products.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon">📭</div>
-          <p>Nenhum produto encontrado para esta categoria.</p>
-        </div>
-      ) : (
-        <>
-          <div className="products-section-title">
-            🔥 Produtos em Alta ({products.length})
-          </div>
-          <div className="products-grid">
-            {products.map((product) => (
-              <ProductCard 
-                key={product.id} 
-                product={product} 
-                onSelect={setSelectedProduct} 
-                onCopy={(p) => {
-                  setSelectedProduct(p);
-                  // handleCopy logic will follow in the modal
-                }}
-                copied={false} // State managed via copiedIndex effectively
-              />
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* Copy Generator Modal */}
-      {selectedProduct && (
-        <div className="modal-overlay" onClick={() => setSelectedProduct(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2 className="modal-title">✍️ Gerador de Copys</h2>
-              <button className="modal-close" onClick={() => setSelectedProduct(null)}>✕</button>
+         </div>
+         <div className="footer-badges">
+            <div className="security-badge">
+               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="#22c55e" viewBox="0 0 256 256"><path d="M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80Zm-80,80a20,20,0,1,1,20-20A20,20,0,0,1,128,160ZM96,56a32,32,0,0,1,64,0V80H96Z"></path></svg>
+               <div className="badge-text">
+                  <strong>SITE PROTEGIDO</strong>
+                  <span>CERTIFICADO SSL</span>
+               </div>
             </div>
-            <div className="modal-body">
-              {/* Product info */}
-              <div className="modal-product-info">
-                <div className="modal-product-image">
-                  <img src={selectedProduct.image} alt={selectedProduct.title} />
-                </div>
-                <div className="modal-product-details">
-                  <h3>{selectedProduct.title}</h3>
-                  <p className="price">{formatPrice(selectedProduct.price)}</p>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    ⭐ {selectedProduct.rating.toFixed(1)} · {selectedProduct.sales.toLocaleString('pt-BR')} vendidos ·{' '}
-                  {getPlatformDetails(selectedProduct.platform).icon} {getPlatformDetails(selectedProduct.platform).label}
-                </p>
-              </div>
+            <div className="security-badge">
+               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="#22c55e" viewBox="0 0 256 256"><path d="M208,40H48A16,16,0,0,0,32,56V200a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V56A16,16,0,0,0,208,40Zm0,160H48V56H208V200Zm-40-64H88a8,8,0,0,0,0,16h80a8,8,0,0,0,0-16Z"></path></svg>
+               <div className="badge-text">
+                  <strong>GOOGLE</strong>
+                  <span>SAFE BROWSING</span>
+               </div>
             </div>
-
-            {/* Template tabs */}
-            <div className="template-tabs">
-              {COPY_TEMPLATES.map(t => (
-                <button
-                  key={t.id}
-                  className={`template-tab ${activeTemplate === t.id ? 'active' : ''}`}
-                  onClick={() => setActiveTemplate(t.id)}
-                >
-                  {t.icon} {t.name}
-                  <span style={{ fontSize: '0.72rem', opacity: 0.7 }}>({t.description})</span>
-                </button>
-              ))}
-            </div>
-
-            {/* Copies */}
-            <div className="copies-grid">
-              {getCopies().map((copy, i) => (
-                <div key={i} className="copy-card">
-                  <div className="copy-card-header">
-                    <span className="copy-card-title">{copy.title}</span>
-                    <button
-                      className={`copy-btn ${copiedIndex === i ? 'copied' : ''}`}
-                      onClick={() => handleCopy(copy.body + (copy.hashtags ? '\n\n' + copy.hashtags : ''), i)}
-                    >
-                      {copiedIndex === i ? '✅ Copiado!' : '📋 Copiar'}
-                    </button>
-                  </div>
-                  <div className="copy-card-body">
-                    <div className="copy-text">{copy.body}</div>
-                    {copy.hashtags && (
-                      <div className="copy-hashtags">{copy.hashtags}</div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {(!affiliateConfig.mercadolivreId || !affiliateConfig.shopeeId || !affiliateConfig.aliexpressId || 
-              !affiliateConfig.amazonId || !affiliateConfig.lomadeeId || !affiliateConfig.awinId || !affiliateConfig.rakutenId) && (
-              <div style={{
-                marginTop: '1rem',
-                padding: '12px 16px',
-                background: 'rgba(249, 115, 22, 0.1)',
-                border: '1px solid rgba(249, 115, 22, 0.3)',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.85rem',
-                color: 'var(--accent-orange)',
-              }}>
-                ⚠️ Configure seus links de afiliados em{' '}
-                <a href="/configuracoes" style={{ color: 'var(--accent-orange)', fontWeight: 600 }}>
-                  Configurações
-                </a>{' '}
-                para incluir seu ID nos copys de todas as plataformas.
-              </div>
-            )}
-            </div>
-          </div>
-        </div>
-      )}
-    </main>
+         </div>
+         <div className="footer-bottom">
+            <span>Powered by <strong>Pega Essa Promo!</strong></span>
+            <Link href="/admin" className="footer-admin-link" style={{ marginLeft: '1rem', color: '#999', textDecoration: 'none' }}>⚙️ Área Restrita (Admin)</Link>
+         </div>
+      </footer>
+    </div>
   );
 }
