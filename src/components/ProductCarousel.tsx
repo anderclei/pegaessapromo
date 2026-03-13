@@ -102,8 +102,8 @@ export default function ProductCarousel({ promotions }: ProductCarouselProps) {
         }
 
         .carousel-item {
-          flex: 0 0 calc(25% - 0.75rem);
-          min-width: 250px;
+          flex: 0 0 calc(20% - 0.8rem);
+          min-width: 200px;
           scroll-snap-align: start;
           background: white;
           border-radius: 12px;
