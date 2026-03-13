@@ -1896,7 +1896,7 @@ body::before {
   background-color: #000000;
   color: #ffffff;
   padding: 0;
-  height: 64px;
+  height: 80px;
   display: flex;
   align-items: center;
 }
@@ -1922,18 +1922,18 @@ body::before {
 
 .header-nav-left {
   justify-content: flex-end;
-  margin-right: 3rem;
+  margin-right: 3.5rem;
 }
 
 .header-nav-right {
   justify-content: flex-start;
-  margin-left: 3rem;
+  margin-left: 3.5rem;
 }
 
 .header-nav-left a, .header-nav-right a {
   color: #ffffff;
   text-decoration: none;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -1956,7 +1956,7 @@ body::before {
 }
 
 .site-logo img {
-  height: 140px;
+  height: 180px;
   width: auto;
   filter: drop-shadow(0 8px 25px rgba(0,0,0,0.4));
   position: absolute;
