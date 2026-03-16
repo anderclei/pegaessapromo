@@ -196,3 +196,62 @@ export async function getRelatedPromotions(category: string, excludeId: string, 
 
   return related;
 }
+// 3. Hot Products (Cached Sync) storage
+export async function saveHotProducts(hotData: any): Promise<void> {
+  const fs = require('fs');
+  const path = require('path');
+  const HOT_PRODUCTS_FILE = path.join(process.cwd(), 'data', 'hot_products.json');
+  
+  // 1. Always try to save locally for dev
+  try {
+    const dir = path.dirname(HOT_PRODUCTS_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(HOT_PRODUCTS_FILE, JSON.stringify(hotData, null, 2));
+  } catch (e) {
+    console.warn('Could not save hot_products locally (likely Vercel environment)');
+  }
+
+  // 2. Save to Supabase for persistence on Vercel
+  if (supabase) {
+    try {
+      await supabase
+        .from('settings')
+        .upsert({
+          id: 'hot_products_cache',
+          config: hotData,
+          updated_at: new Date().toISOString()
+        });
+    } catch (e) {
+      console.error('Error saving hot_products to Supabase:', e);
+    }
+  }
+}
+
+export async function loadHotProducts(): Promise<any> {
+  // 1. Try Supabase first (Live source)
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('settings')
+        .select('config')
+        .eq('id', 'hot_products_cache')
+        .single();
+      
+      if (!error && data && data.config) {
+        return data.config;
+      }
+    } catch (e) {}
+  }
+
+  // 2. Fallback to local file
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const HOT_PRODUCTS_FILE = path.join(process.cwd(), 'data', 'hot_products.json');
+    if (fs.existsSync(HOT_PRODUCTS_FILE)) {
+      return JSON.parse(fs.readFileSync(HOT_PRODUCTS_FILE, 'utf-8'));
+    }
+  } catch (e) {}
+
+  return null;
+}

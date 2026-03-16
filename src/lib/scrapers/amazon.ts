@@ -425,19 +425,24 @@ export async function hydrateAmazonPrice(product: Product): Promise<Product> {
       product.price = finalPrice;
     }
     
-    // Priority 1: Use detected original price
+    // Priority 1: Use detected original price from this hydration
     if (originalPriceValue && originalPriceValue > product.price) {
       product.originalPrice = originalPriceValue;
       product.discount = Math.round(((originalPriceValue - product.price) / originalPriceValue) * 100);
     } 
-    // Priority 2: Use direct discount if original price failed but discount was found
+    // Priority 2: Use direct discount badge from this hydration
     else if (directDiscount > 0 && product.price > 0) {
       product.discount = directDiscount;
       product.originalPrice = Math.round((product.price / (1 - (directDiscount / 100))) * 100) / 100;
     }
-    else {
-      product.originalPrice = undefined;
-      product.discount = 0;
+    // Fallback: Preserve existing values if they are valid, else clear
+    else if (!product.originalPrice || product.originalPrice <= product.price) {
+       // Only wipe if current data is invalid. 
+       // If list scraper found a better discount, we keep it.
+       if (!product.discount || product.discount <= 0) {
+         product.originalPrice = undefined;
+         product.discount = 0;
+       }
     }
   } catch (e) {
     console.error(`Error hydrating amazon price for ${product.id}`, (e as Error).message);

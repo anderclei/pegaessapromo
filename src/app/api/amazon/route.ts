@@ -2,19 +2,17 @@ import { NextResponse } from 'next/server';
 import { scrapeAmazon } from '@/lib/scrapers/amazon';
 import fs from 'fs';
 import path from 'path';
-
-const HOT_PRODUCTS_FILE = path.join(process.cwd(), 'data', 'hot_products.json');
+import { loadHotProducts } from '@/lib/promotions';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const category = searchParams.get('category') || 'todos';
 
   try {
-    // 1. Try to load from synced hot products first
-    if (fs.existsSync(HOT_PRODUCTS_FILE)) {
-      const content = fs.readFileSync(HOT_PRODUCTS_FILE, 'utf-8');
-      const hotData = JSON.parse(content);
-      
+    // 1. Try to load from synced hot products (Supabase or Local File)
+    const hotData = await loadHotProducts();
+    
+    if (hotData) {
       // AUTOMATIC SYNC LOGIC: Every :00 and :30 (UTC-3 / Brasilia)
       const now = new Date();
       const lastSync = hotData.lastSync ? new Date(hotData.lastSync) : new Date(0);

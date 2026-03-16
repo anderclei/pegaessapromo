@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
-import { scrapeAmazon } from '@/lib/scrapers/amazon';
+import { scrapeAmazon, hydrateAmazonPrice } from '@/lib/scrapers/amazon';
 import { Category } from '@/lib/types';
 import fs from 'fs';
 import path from 'path';
-
-const HOT_PRODUCTS_FILE = path.join(process.cwd(), 'data', 'hot_products.json');
+import { saveHotProducts } from '@/lib/promotions';
 
 // Categories will be loaded dynamically from src/data/categories.json
 const categoriesPath = path.join(process.cwd(), 'src/data/categories.json');
@@ -68,7 +67,6 @@ export async function POST(request: Request) {
 
           // Re-enable hydration for top products to ensure live price accuracy (Pix, etc)
           if (typedProducts.length > 0) {
-            const { hydrateAmazonPrice } = require('@/lib/scrapers/amazon');
             for (let i = 0; i < Math.min(20, typedProducts.length); i++) {
                await hydrateAmazonPrice(typedProducts[i]);
                await new Promise(r => setTimeout(r, 600)); // Safer delay
@@ -106,9 +104,7 @@ export async function POST(request: Request) {
         });
         
         // Hydrate the EXACT prices from the detail page before caching them globally
-        // This solves the discrepancy between List Price and Detail Page Price (e.g. Huawei mismatch)
         console.log(`Hydrating live prices for ${typedProducts.length} ${type}...`);
-        const { hydrateAmazonPrice } = require('@/lib/scrapers/amazon');
         
         // Hydrate the top 20 of these deals synchronously to avoid rate-limits
         for (let i = 0; i < Math.min(20, typedProducts.length); i++) {
@@ -123,10 +119,6 @@ export async function POST(request: Request) {
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
-    // Save to file
-    const dir = path.dirname(HOT_PRODUCTS_FILE);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    
     // Add metadata
     const finalData = {
       ...results,
@@ -137,9 +129,10 @@ export async function POST(request: Request) {
       }
     };
 
-    fs.writeFileSync(HOT_PRODUCTS_FILE, JSON.stringify(finalData, null, 2));
+    // Save to Cloud (Supabase) + Local File fallback
+    await saveHotProducts(finalData);
 
-    console.log(`Sync completed. Saved ${finalData.metadata.totalProducts} products to hot_products.json`);
+    console.log(`Sync completed. Saved ${finalData.metadata.totalProducts} products.`);
 
     return NextResponse.json({ 
       success: true, 
