@@ -378,17 +378,25 @@ export async function hydrateAmazonPrice(product: Product): Promise<Product> {
     let pText = $('.a-price.a-text-price .a-offscreen').first().text().trim() ||
                 $('.basisPrice .a-offscreen').first().text().trim() ||
                 $('#listPrice').text().trim() ||
-                $('.a-text-strike').first().text().trim();
+                $('.a-text-strike').first().text().trim() ||
+                $('[data-a-strike="true"]').first().text().trim();
     
-    let originalPriceText = 0;
-    if (pText && pText.includes('R$')) {
-       const match = pText.match(/R\$\s*([\d.,]+)/);
-       if (match) {
-         originalPriceText = cleanPriceStr(match[1]);
-       }
+    let originalPriceValue = 0;
+    if (pText) {
+       originalPriceValue = cleanPriceStr(pText);
     }
 
-    if (finalPrice === 0 && originalPriceText === 0) {
+    // New: Attempt to find the discount percentage directly if available (e.g., "-24%")
+    let directDiscount = 0;
+    const discountElementText = $('.savingPriceOverride, .priceBlockSavingsString, .bundle-v2-savings-badge').first().text().trim() ||
+                                $('.a-size-large.a-color-price.savingPriceOverride').text().trim();
+    
+    if (discountElementText && discountElementText.includes('%')) {
+       const dMatch = discountElementText.match(/(\d+)%/);
+       if (dMatch) directDiscount = parseInt(dMatch[1]);
+    }
+
+    if (finalPrice === 0 && originalPriceValue === 0) {
       // Scrape entirely failed (likely CAPTCHA). Do not wipe out existing grid prices.
       return product;
     }
@@ -397,10 +405,17 @@ export async function hydrateAmazonPrice(product: Product): Promise<Product> {
       product.price = finalPrice;
     }
     
-    if (originalPriceText && originalPriceText > product.price) {
-      product.originalPrice = originalPriceText;
-      product.discount = Math.round(((originalPriceText - product.price) / originalPriceText) * 100);
-    } else {
+    // Priority 1: Use detected original price
+    if (originalPriceValue && originalPriceValue > product.price) {
+      product.originalPrice = originalPriceValue;
+      product.discount = Math.round(((originalPriceValue - product.price) / originalPriceValue) * 100);
+    } 
+    // Priority 2: Use direct discount if original price failed but discount was found
+    else if (directDiscount > 0 && product.price > 0) {
+      product.discount = directDiscount;
+      product.originalPrice = Math.round((product.price / (1 - (directDiscount / 100))) * 100) / 100;
+    }
+    else {
       product.originalPrice = undefined;
       product.discount = 0;
     }
