@@ -25,7 +25,12 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { config } = await request.json();
+    // Safely parse body only if it's a POST with content
+    let config = null;
+    if (request.method === 'POST') {
+      try { config = (await request.json())?.config; } catch (e) { /* ignore */ }
+    }
+    
     const now = new Date();
     const amazonId = config?.amazonId || 'andercleipino-20';
     
