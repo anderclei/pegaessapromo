@@ -349,27 +349,31 @@ export async function hydrateAmazonPrice(product: Product): Promise<Product> {
     let pixPrice = 0;
     const bodyText = $('body').text().replace(/\s+/g, ' '); 
     
-    // Improved regex to find Pix price: specifically looking for "R$ [valor] à vista no Pix"
-    const pixMatch = bodyText.match(/R\$\s*([\d.,]+)\s*(?:à vista\s+)?no Pix/i) || 
-                     bodyText.match(/([\d.,]+)\s*à vista\s+no Pix/i);
+    // Pattern 1: Price followed by "no Pix" or "à vista no Pix"
+    // Pattern 2: "no Pix" or "à vista no Pix" followed by Price (Amazon varies this)
+    const pixRegex1 = /R\$\s*([\d.,]+)\s*(?:à\s+vista\s+)?no\s+Pix/i;
+    const pixRegex2 = /(?:à\s+vista\s+)?no\s+Pix[^R]*R\$\s*([\d.,]+)/i;
     
-    if (pixMatch) {
-       const potentialPix = cleanPriceStr(pixMatch[1]);
-       // Validate: Pix should be a reasonable price (not a tiny fraction like R$ 10,00 for a fridge)
-       if (potentialPix > 5) { 
+    const m1 = bodyText.match(pixRegex1);
+    const m2 = bodyText.match(pixRegex2);
+    
+    if (m1 || m2) {
+       const pixStr = m1 ? m1[1] : m2![1];
+       const potentialPix = cleanPriceStr(pixStr);
+       if (potentialPix > 10) { 
          pixPrice = potentialPix;
        }
     }
 
     let detectedBasePrice = cleanPriceStr(basePriceText);
     
-    // Prefer Pix price if it's lower than base price, otherwise trust base price
-    let finalPrice = (pixPrice > 0 && pixPrice < (detectedBasePrice || 9999999)) 
-      ? pixPrice 
-      : detectedBasePrice;
-
-    // Last fallback: if we only found Pix price, use it
-    if (finalPrice === 0 && pixPrice > 0) finalPrice = pixPrice;
+    // Choose the lowest valid price found
+    let finalPrice = 0;
+    if (pixPrice > 0 && detectedBasePrice > 0) {
+      finalPrice = Math.min(pixPrice, detectedBasePrice);
+    } else {
+      finalPrice = pixPrice || detectedBasePrice;
+    }
 
     let pText = $('.a-price.a-text-price .a-offscreen').first().text().trim() ||
                 $('.basisPrice .a-offscreen').first().text().trim() ||
