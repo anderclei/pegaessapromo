@@ -348,13 +348,28 @@ export async function hydrateAmazonPrice(product: Product): Promise<Product> {
 
     let pixPrice = 0;
     const bodyText = $('body').text().replace(/\s+/g, ' '); 
-    const pixMatch = bodyText.match(/R\$\s*([\d.,]+)\s*(à vista no Pix|no Pix)/i) || 
-                     bodyText.match(/([\d.,]+)\s*(à vista no Pix|no Pix)/i);
+    
+    // Improved regex to find Pix price: specifically looking for "R$ [valor] à vista no Pix"
+    const pixMatch = bodyText.match(/R\$\s*([\d.,]+)\s*(?:à vista\s+)?no Pix/i) || 
+                     bodyText.match(/([\d.,]+)\s*à vista\s+no Pix/i);
+    
     if (pixMatch) {
-       pixPrice = cleanPriceStr(pixMatch[1]);
+       const potentialPix = cleanPriceStr(pixMatch[1]);
+       // Validate: Pix should be a reasonable price (not a tiny fraction like R$ 10,00 for a fridge)
+       if (potentialPix > 5) { 
+         pixPrice = potentialPix;
+       }
     }
 
-    let finalPrice = pixPrice > 0 ? pixPrice : cleanPriceStr(basePriceText);
+    let detectedBasePrice = cleanPriceStr(basePriceText);
+    
+    // Prefer Pix price if it's lower than base price, otherwise trust base price
+    let finalPrice = (pixPrice > 0 && pixPrice < (detectedBasePrice || 9999999)) 
+      ? pixPrice 
+      : detectedBasePrice;
+
+    // Last fallback: if we only found Pix price, use it
+    if (finalPrice === 0 && pixPrice > 0) finalPrice = pixPrice;
 
     let pText = $('.a-price.a-text-price .a-offscreen').first().text().trim() ||
                 $('.basisPrice .a-offscreen').first().text().trim() ||

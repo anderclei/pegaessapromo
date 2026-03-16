@@ -48,9 +48,7 @@ export async function getPromotion(id: string): Promise<Promotion | null> {
 
     if (!error && data) {
       const product = data.product;
-      if (product.platform === 'amazon') {
-        await hydrateAmazonPrice(product);
-      }
+      // Removed automatic hydration to maintain price consistency
       return {
         id: data.id,
         product: product,
@@ -79,9 +77,8 @@ export async function getPromotion(id: string): Promise<Promotion | null> {
       const foundProduct = allProducts.find((p: any) => p && p.id === id);
       
       if (foundProduct) {
-        if (foundProduct.platform === 'amazon') {
-          await hydrateAmazonPrice(foundProduct);
-        }
+        // We removed automatic hydration here to avoid price contradictions 
+        // between the main grid and detail page. Prices are managed by the sync process.
         return {
           id: foundProduct.id,
           product: foundProduct,
