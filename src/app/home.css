@@ -349,30 +349,34 @@
 }
 
 .premium-card-old-price {
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   color: #94a3b8;
   text-decoration: line-through;
+  font-weight: 500;
 }
 
 .premium-card-price {
-  font-size: 1.5rem;
+  font-size: 1.6rem;
   font-weight: 900;
   color: #059669;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.04em;
 }
 
 .discount-badge {
   position: absolute;
   top: 12px;
   right: 12px;
-  background: #ff4444;
+  background: rgba(239, 68, 68, 0.95);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
   color: white;
-  padding: 4px 10px;
+  padding: 6px 12px;
   border-radius: 99px;
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   font-weight: 800;
-  box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.2);
-  z-index: 10;
+  z-index: 5;
+  box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.3);
+  letter-spacing: -0.01em;
 }
 
 .card-cta {

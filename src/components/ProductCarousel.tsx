@@ -9,12 +9,7 @@ interface ProductCarouselProps {
 }
 
 const calculateDiscount = (p: Promotion) => {
-  const { product } = p;
-  if (product.discount) return product.discount;
-  if (product.originalPrice && product.originalPrice > product.price) {
-    return Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
-  }
-  return 0;
+  return p.product.discount || 0;
 };
 
 export default function ProductCarousel({ promotions }: ProductCarouselProps) {

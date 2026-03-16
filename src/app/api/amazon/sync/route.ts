@@ -18,6 +18,11 @@ function getCategories() {
   }
 }
 
+// Support GET for easy browser-triggered sync
+export async function GET(request: Request) {
+  return POST(request);
+}
+
 export async function POST(request: Request) {
   try {
     const { config } = await request.json();
