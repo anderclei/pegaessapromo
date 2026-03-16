@@ -13,6 +13,11 @@ export function generateId(length: number = 8): string {
 export async function savePromotion(product: Product, affiliateLink: string): Promise<string> {
   const id = generateId();
   
+  if (!supabase) {
+    console.warn('Supabase not initialized, promotion not saved to DB but ID generated.');
+    return id; 
+  }
+
   const { error } = await supabase
     .from('promotions')
     .insert({
@@ -24,7 +29,7 @@ export async function savePromotion(product: Product, affiliateLink: string): Pr
 
   if (error) {
     console.error('Error saving promotion to Supabase:', error);
-    throw error;
+    // Don't throw, just return ID so the link works locally
   }
   
   return id;
@@ -34,23 +39,29 @@ import { hydrateAmazonPrice } from './scrapers/amazon';
 
 export async function getPromotion(id: string): Promise<Promotion | null> {
   // 1. Try Supabase first
-  const { data, error } = await supabase
-    .from('promotions')
-    .select('*')
-    .eq('id', id)
-    .single();
+  if (supabase) {
+    const { data, error } = await supabase
+      .from('promotions')
+      .select('*')
+      .eq('id', id)
+      .single();
 
-  if (!error && data) {
-    const product = data.product;
-    if (product.platform === 'amazon') {
-      await hydrateAmazonPrice(product);
+    if (!error && data) {
+      const product = data.product;
+      if (product.platform === 'amazon') {
+        await hydrateAmazonPrice(product);
+      }
+      return {
+        id: data.id,
+        product: product,
+        affiliateLink: data.affiliate_link,
+        createdAt: data.created_at,
+      };
     }
-    return {
-      id: data.id,
-      product: product,
-      affiliateLink: data.affiliate_link,
-      createdAt: data.created_at,
-    };
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('Error fetching promotion from Supabase:', error);
+    }
   }
 
   // 2. Fallback to hot_products.json
@@ -83,14 +94,13 @@ export async function getPromotion(id: string): Promise<Promotion | null> {
     console.error('Error reading hot_products for detail page:', e);
   }
 
-  if (error && error.code !== 'PGRST116') {
-    console.error('Error fetching promotion from Supabase:', error);
-  }
 
   return null;
 }
 
 export async function getLatestPromotions(limit: number = 20): Promise<Promotion[]> {
+  if (!supabase) return [];
+  
   const { data, error } = await supabase
     .from('promotions')
     .select('*')
@@ -115,27 +125,29 @@ export async function getRelatedPromotions(category: string, excludeId: string, 
   const usedIds = new Set([excludeId]);
 
   // 1. Try Supabase for manual products in SAME category
-  try {
-    const { data, error } = await supabase
-      .from('promotions')
-      .select('*')
-      .eq('product->>category', category)
-      .neq('id', excludeId)
-      .order('created_at', { ascending: false })
-      .limit(limit);
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('promotions')
+        .select('*')
+        .eq('product->>category', category)
+        .neq('id', excludeId)
+        .order('created_at', { ascending: false })
+        .limit(limit);
 
-    if (!error && data) {
-      data.forEach((item: any) => {
-        related.push({
-          id: item.id,
-          product: item.product,
-          affiliateLink: item.affiliate_link,
-          createdAt: item.created_at,
+      if (!error && data) {
+        data.forEach((item: any) => {
+          related.push({
+            id: item.id,
+            product: item.product,
+            affiliateLink: item.affiliate_link,
+            createdAt: item.created_at,
+          });
+          usedIds.add(item.id);
         });
-        usedIds.add(item.id);
-      });
-    }
-  } catch (e) {}
+      }
+    } catch (e) {}
+  }
 
   // 2. Try hot_products.json for automated products in SAME category
   try {

@@ -10,6 +10,8 @@ export interface AffiliateConfig {
 }
 
 export async function getSettings(): Promise<AffiliateConfig | null> {
+  if (!supabase) return null;
+  
   const { data, error } = await supabase
     .from('settings')
     .select('config')
@@ -26,6 +28,11 @@ export async function getSettings(): Promise<AffiliateConfig | null> {
 }
 
 export async function saveSettings(config: AffiliateConfig): Promise<void> {
+  if (!supabase) {
+    console.error('Cannot save settings: Supabase not initialized');
+    return;
+  }
+  
   const { error } = await supabase
     .from('settings')
     .upsert({
