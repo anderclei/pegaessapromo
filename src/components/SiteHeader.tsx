@@ -7,29 +7,20 @@ export default function SiteHeader() {
     <div className="header-wrapper-fixed">
       <div className="header-top-bar">
         <div className="top-bar-container">
-          <span>🚚 Frete Grátis em milhares de produtos</span>
+          <span></span>
           <div className="top-bar-links">
-            <a href="#">Ajuda</a>
-            <a href="#">Rastrear Pedido</a>
           </div>
         </div>
       </div>
       <header className="site-header">
         <div className="header-container">
-          <nav className="header-nav-left">
-            <a href="#">🎫 CUPOM</a>
-            <a href="#">🔥 PROMOÇÕES</a>
-          </nav>
+          <div className="header-left-placeholder"></div>
 
-          <Link href="/" className="site-logo">
-            <img src="/logo.png" alt="Pega Essa Promo!" />
+          <Link href="/" className="site-logo" title="Pega Essa Promo! - Sua vitrine de ofertas">
+            <img src="/logo.png" alt="Pega Essa Promo! - Logotipo Oficial" />
           </Link>
 
           <div className="header-right-group">
-            <nav className="header-nav-right">
-              <a href="#">📦 CATEGORIAS</a>
-              <a href="#">📝 BLOG</a>
-            </nav>
             <div className="header-search">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="white" viewBox="0 0 256 256"><path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"></path></svg>
             </div>

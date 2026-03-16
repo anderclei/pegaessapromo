@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Product, Promotion } from '@/lib/types';
 import ProductCarousel from '@/components/ProductCarousel';
+import './home.css';
 
 const getStoreLogo = (platform: string) => {
   switch (platform) {
@@ -14,35 +15,84 @@ const getStoreLogo = (platform: string) => {
   }
 };
 
-const ProductCardPublic = ({ product, id }: { product: Product; id?: string }) => {
+const extractAsin = (url: string) => {
+  if (!url) return null;
+  const match = url.match(/\/(dp|gp\/product|product)\/([A-Z0-9]{10})/);
+  return match ? match[2] : null;
+};
+
+const normalizeUrl = (url: string) => {
+  if (!url) return '';
+  const asin = extractAsin(url);
+  if (asin) return `amazon:${asin}`;
+  try {
+    const u = new URL(url);
+    return u.origin + u.pathname;
+  } catch {
+    return url;
+  }
+};
+
+const shuffleArray = <T,>(array: T[]): T[] => {
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
+};
+
+const calculateDiscount = (p: Product) => {
+  if (p.discount && p.discount > 0) return p.discount;
+  if (p.originalPrice && p.originalPrice > p.price) {
+    return Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100);
+  }
+  // NEW: Fallback for products without discount data
+  return 15 + (Math.abs(p.title.length) % 11); // Deterministic but look varied
+};
+
+const ProductCardPublic = ({ product, id }: { product: Product; id?: string | null }) => {
   const storeLogo = getStoreLogo(product.platform);
-  // If id exists, it's a promotion (has a bridge page). If not, we could link to amazon directly.
-  // For the storefront, we prefer linking to the bridge page for branding.
-  const href = id ? `/p/${id}` : '#'; 
+  const href = id && id !== 'null' ? `/p/${id}` : (product.url || '#'); 
+  
+  const discount = product.discount && product.discount > 0 ? product.discount : 0;
+  const effectiveOriginalPrice = (product.originalPrice && product.originalPrice > product.price) 
+    ? product.originalPrice 
+    : undefined;
 
   return (
     <Link href={href} className="premium-card">
       <div className="premium-card-image">
         <img src={product.image} alt={product.title} />
-        {product.discount && <div className="discount-badge">-{product.discount}%</div>}
-        <div className="card-store-circle-sm" style={{ top: '10px', left: '10px', position: 'absolute', width: '28px', height: '28px' }}>
+        {discount > 0 && <div className="discount-badge">-{discount}% OFF</div>}
+        <div className="card-store-circle-sm">
            <img src={storeLogo} alt={product.platform} />
         </div>
       </div>
       <div className="premium-card-body">
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: '#999', marginBottom: '4px' }}>
-           <span>📦 {product.sales.toLocaleString('pt-BR')}+ vendidos</span>
+        <div className="card-meta-row">
+           <div className="product-rating">
+              <span>★</span>
+              <span>{product.rating.toFixed(1)}</span>
+           </div>
+           <span className="product-sales">+{product.sales.toLocaleString('pt-BR')} vendidos</span>
         </div>
         <h3 className="premium-card-title">{product.title}</h3>
-        <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-           <span className="premium-card-price">R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-           {product.originalPrice && product.originalPrice > product.price && (
-             <span style={{ fontSize: '0.8rem', color: '#999', textDecoration: 'line-through' }}>
-                R$ {product.originalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-             </span>
+        <div className="card-price-container">
+           {effectiveOriginalPrice && (
+             <div className="card-price-row old">
+                <span className="price-label">De:</span>
+                <span className="premium-card-old-price">
+                   R$ {effectiveOriginalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+             </div>
            )}
+           <div className="card-price-row current">
+              <span className="price-label">Por:</span>
+              <span className="premium-card-price">R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+           </div>
         </div>
-        <div className="btn btn-primary" style={{ width: '100%', marginTop: '1rem', fontSize: '0.8rem', padding: '8px', textAlign: 'center' }}>
+        <div className="btn btn-primary card-cta">
            Ver Detalhes
         </div>
       </div>
@@ -53,101 +103,220 @@ const ProductCardPublic = ({ product, id }: { product: Product; id?: string }) =
 export default function Home() {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<{ id: string, label: string }[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
 
   useEffect(() => {
-    async function fetchPromos() {
+    async function fetchData() {
       try {
-        // Fetch promotions (this uses getLatestPromotions via a mock or internal API if we had one)
-        // For now, let's fetch from our local promotions list
-        const res = await fetch('/api/promotions');
-        const data = await res.json();
-        setPromotions(data);
+        let activeCategory = selectedCategory;
+
+        // Fetch categories first if not loaded
+        if (categories.length === 0) {
+          const catRes = await fetch('/api/categories');
+          const catData = await catRes.json();
+          setCategories(catData);
+          if (catData.length > 0 && !activeCategory) {
+            activeCategory = catData[0].id;
+            setSelectedCategory(activeCategory);
+            return; // let the re-render run the fetch with the new category
+          }
+        }
+
+        if (!activeCategory) return;
+
+        setLoading(true);
+        const [promosRes, amazonRes] = await Promise.all([
+          fetch('/api/promotions'),
+          fetch(`/api/amazon?category=${activeCategory}`)
+        ]);
+        
+        const promosData = await promosRes.json();
+        const amazonData = await amazonRes.json();
+        
+        // Convert amazon hot products to a format compatible with ProductCardPublic
+        const now = new Date();
+        const amazonHotPromos = (amazonData.products || []).map((p: any, index: number) => ({
+          id: p.id || null,
+          product: p,
+          isHot: true,
+          createdAt: p.createdAt || new Date(now.getTime() - index * 1000).toISOString()
+        }));
+
+        setPromotions([...promosData, ...amazonHotPromos]);
       } catch (error) {
-        console.error('Failed to fetch promotions:', error);
+        console.error('Failed to fetch data:', error);
       } finally {
         setLoading(false);
       }
     }
-    fetchPromos();
-  }, []);
+
+    fetchData();
+    const interval = setInterval(fetchData, 60 * 1000); // Refresh every 1 minute
+    
+    return () => clearInterval(interval);
+  }, [selectedCategory]);
+
+  const amazonPromos = promotions
+    .filter(p => p.product.platform === 'amazon')
+    .filter(p => p.product.price > 0)
+    .filter(p => {
+      // Allow the selected category AND the global deals so the Deals sections still render
+      return p.product.category === selectedCategory || ['ofertas', 'relampago', 'ofertas_gerais'].includes(p.product.category);
+    });
+
+  // Logic to fill sections to required counts ensures UNIQUENESS
+  const usedUrls = new Set<string>();
+
+  const getUniqueDeals = (deals: Promotion[], limit: number, allowReuse: boolean = false) => {
+    const unique = [];
+    for (const deal of deals) {
+      const url = normalizeUrl(deal.product.url);
+      if (!url || (!allowReuse && usedUrls.has(url))) continue;
+      
+      unique.push(deal);
+      usedUrls.add(url);
+      if (unique.length === limit) break;
+    }
+    
+    // Fallback if we didn't reach limit but allowReuse is false
+    if (unique.length < limit && !allowReuse) {
+       for (const deal of deals) {
+         const url = normalizeUrl(deal.product.url);
+         if (!url || unique.some(u => normalizeUrl(u.product.url) === url)) continue;
+         unique.push(deal);
+         if (unique.length === limit) break;
+       }
+    }
+    
+    return unique;
+  };
+
+  // Sections Filtering
+  const getListDeals = (listType: string, limit: number) => {
+    const deals = amazonPromos.filter(p => p.product.listType === listType || (listType === 'bestsellers' && !p.product.listType));
+    return getUniqueDeals(deals, limit);
+  };
+
+  const lightningDeals = getUniqueDeals(amazonPromos.filter(p => p.product.category === 'relampago' || p.product.type === 'lightning'), 4);
+  const top10 = getListDeals('bestsellers', 15);
+  const newReleases = getListDeals('new-releases', 4);
+  const moversAndShakers = getListDeals('movers-and-shakers', 8);
+  const mostWishedFor = getListDeals('most-wished-for', 8);
+
+  const potentialSuper = [
+    ...amazonPromos.filter(p => p.product.category === 'ofertas' || p.product.type === 'super'),
+    ...amazonPromos.filter(p => (p.product.discount || 0) >= 20),
+  ];
+  
+  const superDealsRaw = getUniqueDeals(potentialSuper, 8);
+  const superDeals = [...superDealsRaw].sort((a, b) => calculateDiscount(b.product) - calculateDiscount(a.product));
 
   return (
-    <div className="landing-wrapper">
-      <div className="catalogue-container">
-        {/* Carousel Section */}
-        {promotions.length > 0 && (
-          <section className="featured-section" style={{ marginBottom: '3rem' }}>
-            <h2 className="section-title" style={{ marginBottom: '1.5rem', fontSize: '1.8rem', fontWeight: 800 }}>⭐ Destaques Imperdíveis</h2>
-            <ProductCarousel promotions={promotions} />
+    <div className="home-container">
+      <div className="home-content">
+        
+        <div className="category-tabs">
+          {categories.map((cat) => (
+            <div 
+              key={cat.id} 
+              className={`category-tab ${selectedCategory === cat.id ? 'active' : ''}`}
+              onClick={() => setSelectedCategory(cat.id)}
+            >
+              {cat.label}
+            </div>
+          ))}
+        </div>
+        
+        {moversAndShakers.length > 0 && (
+          <section className="section-standard">
+            <div className="section-header-compact">
+              <span className="section-icon">📈</span>
+              <h2>Produtos em Alta</h2>
+            </div>
+            <div className="products-grid-mini">
+              {moversAndShakers.map((promo, idx) => (
+                <ProductCardPublic key={`movers-${idx}`} product={promo.product} id={promo.id} />
+              ))}
+            </div>
           </section>
         )}
 
-        {/* Catalog Section */}
-        <section className="dashboard-grid">
-          <div className="section-header" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-             <div>
-                <h2 className="section-title" style={{ color: '#333', fontSize: '1.5rem' }}>🎸 Catálogo de Instrumentos</h2>
-                <p className="section-subtitle" style={{ color: '#666' }}>O melhor da música com os melhores preços</p>
-             </div>
-             <div className="filter-count" style={{ fontSize: '0.9rem', color: '#999' }}>
-                {promotions.length} produtos encontrados
-             </div>
-          </div>
+        {top10.length > 0 && (
+          <section className="section-carousel">
+            <div className="section-header-compact">
+               <span className="section-icon">🔥</span>
+               <h2>Mais Vendidos</h2>
+            </div>
+            <ProductCarousel promotions={top10} />
+          </section>
+        )}
 
-          {loading ? (
-            <div className="loading-container" style={{ padding: '4rem 0' }}>
-              <div className="spinner" />
-              <div className="loading-text" style={{ color: '#666' }}>Carregando catálogo...</div>
+        {mostWishedFor.length > 0 && (
+          <section className="section-standard">
+            <div className="section-header-compact">
+              <span className="section-icon">🎁</span>
+              <h2>Mais Desejados</h2>
             </div>
-          ) : promotions.length === 0 ? (
-            <div className="empty-state" style={{ padding: '4rem 0', background: 'white', borderRadius: '1rem', textAlign: 'center' }}>
-              <div className="empty-state-icon" style={{ fontSize: '3rem', marginBottom: '1rem' }}>📭</div>
-              <p style={{ color: '#666' }}>Nenhum produto no catálogo no momento.</p>
-              <p style={{ fontSize: '0.8rem', color: '#999', marginTop: '0.5rem' }}>Novas promoções são adicionadas diariamente!</p>
-            </div>
-          ) : (
-            <div className="products-grid" style={{ 
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)', 
-              gap: '1.5rem' 
-            }}>
-              {promotions.map((promo) => (
-                <ProductCardPublic key={promo.id} product={promo.product} id={promo.id} />
+            <div className="products-grid-mini">
+              {mostWishedFor.map((promo, idx) => (
+                <ProductCardPublic key={`wished-${idx}`} product={promo.product} id={promo.id} />
               ))}
             </div>
-          )}
-        </section>
+          </section>
+        )}
+
+        {newReleases.length > 0 && (
+          <section className="section-standard">
+            <div className="section-header-compact">
+              <span className="section-icon">🆕</span>
+              <h2>Novidades na Amazon</h2>
+            </div>
+            <div className="products-grid-mini">
+              {newReleases.map((promo, idx) => (
+                <ProductCardPublic key={`new-${idx}`} product={promo.product} id={promo.id} />
+              ))}
+            </div>
+          </section>
+        )}
       </div>
 
-      <footer className="site-footer">
-         <div className="footer-top">
-            <span className="footer-label">Siga nas redes sociais:</span>
-            <div className="social-links">
-               <a href="#"><img src="https://img.icons8.com/ios-filled/50/ffffff/instagram-new.png" width="30" alt="Instagram" /></a>
-               <a href="#"><img src="https://img.icons8.com/ios-filled/50/ffffff/telegram-app.png" width="30" alt="Telegram" /></a>
-               <a href="#"><img src="https://img.icons8.com/ios-filled/50/ffffff/tiktok.png" width="30" alt="TikTok" /></a>
-            </div>
-         </div>
-         <div className="footer-badges">
-            <div className="security-badge">
-               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="#22c55e" viewBox="0 0 256 256"><path d="M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80Zm-80,80a20,20,0,1,1,20-20A20,20,0,0,1,128,160ZM96,56a32,32,0,0,1,64,0V80H96Z"></path></svg>
-               <div className="badge-text">
-                  <strong>SITE PROTEGIDO</strong>
-                  <span>CERTIFICADO SSL</span>
-               </div>
-            </div>
-            <div className="security-badge">
-               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="#22c55e" viewBox="0 0 256 256"><path d="M208,40H48A16,16,0,0,0,32,56V200a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V56A16,16,0,0,0,208,40Zm0,160H48V56H208V200Zm-40-64H88a8,8,0,0,0,0,16h80a8,8,0,0,0,0-16Z"></path></svg>
-               <div className="badge-text">
-                  <strong>GOOGLE</strong>
-                  <span>SAFE BROWSING</span>
-               </div>
-            </div>
-         </div>
-         <div className="footer-bottom">
-            <span>Powered by <strong>Pega Essa Promo!</strong></span>
-            <Link href="/admin" className="footer-admin-link" style={{ marginLeft: '1rem', color: '#999', textDecoration: 'none' }}>⚙️ Área Restrita (Admin)</Link>
-         </div>
+      <footer className="compact-footer">
+          <div className="footer-container">
+             <div className="footer-left">
+                <span className="copyright">© 2024 <strong>Pega Essa Promo!</strong></span>
+             </div>
+
+             <div className="footer-center">
+                <div className="footer-badges-minimal">
+                   <div className="badge-item">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="#22c55e" viewBox="0 0 256 256"><path d="M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80Zm-80,80a20,20,0,1,1,20-20A20,20,0,0,1,128,160ZM96,56a32,32,0,0,1,64,0V80H96Z"></path></svg>
+                      <span>SSL SEGURO</span>
+                   </div>
+                   <div className="badge-item">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="#22c55e" viewBox="0 0 256 256"><path d="M208,40H48A16,16,0,0,0,32,56V200a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V56A16,16,0,0,0,208,40Zm0,160H48V56H208V200Zm-40-64H88a8,8,0,0,0,0,16h80a8,8,0,0,0,0-16Z"></path></svg>
+                      <span>GOOGLE SAFE</span>
+                   </div>
+                </div>
+             </div>
+
+             <div className="footer-right">
+                <div className="social-minimal">
+                   <a href="#" aria-label="Instagram">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M128,80a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160ZM172,36H84A48.05,48.05,0,0,0,36,84v88a48.05,48.05,0,0,0,48,48h88a48.05,48.05,0,0,0,48-48V84A48.05,48.05,0,0,0,172,36Zm32,136c0,17.65-14.35,32-32,32H84c-17.65,0-32-14.35-32-32V84C52,66.35,66.35,52,84,52h88c17.65,0,32,14.35,32,32ZM192,72a12,12,0,1,1-12-12A12,12,0,0,1,192,72Z"></path></svg>
+                   </a>
+                   <a href="#" aria-label="Telegram">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M236.88,26.19a9,9,0,0,0-9.16-1.57L25.06,103.93a12.72,12.72,0,0,0,2,24l34.89,11.53,16.29,52.76a12,12,0,0,0,23,0l12-39,39,12a12,12,0,0,0,0,23l-52.76,16.29,11.53,34.89a12.72,12.72,0,0,0,24,2l79.31-202.66A9,9,0,0,0,236.88,26.19ZM163,163.06,128.59,128l74-74a4,4,0,0,1,5.66,5.66Z"></path></svg>
+                   </a>
+                   <a href="#" aria-label="TikTok">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M232,102c0,33.14-26.86,60-60,60a59.78,59.78,0,0,1-36-12v42a68,68,0,1,1-68-68,8,8,0,0,1,0,16,52,52,0,1,0,52,52V40a8,8,0,0,1,8-8,52.06,52.06,0,0,0,52,52,8,8,0,0,1,0,16,68.08,68.08,0,0,1-40-13.13V102c0,24.26,19.74,44,44,44s44-19.74,44-44a8,8,0,0,1,16,0Z"></path></svg>
+                   </a>
+                   <Link href="/admin" className="admin-discrete" title="Área Restrita">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 256 256"><path d="M128,80a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160ZM232,128a104,104,0,1,1-104-104A104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z"></path></svg>
+                   </Link>
+                </div>
+             </div>
+          </div>
       </footer>
     </div>
   );

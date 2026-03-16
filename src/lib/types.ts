@@ -13,6 +13,9 @@ export interface Product {
   seller?: string;
   discount?: number;
   freeShipping?: boolean;
+  type?: 'bestsellers' | 'lightning' | 'super';
+  listType?: 'bestsellers' | 'new-releases' | 'movers-and-shakers' | 'most-wished-for';
+  createdAt?: string;
 }
 
 export interface AffiliateConfig {
@@ -48,7 +51,7 @@ export interface CopyTemplate {
   generate: (product: Product, affiliateLink: string) => CopyResult[];
 }
 
-export type Category = 'todos' | 'instrumentos_musicais';
+export type Category = string;
 
 export interface Promotion {
   id: string;

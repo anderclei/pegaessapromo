@@ -7,37 +7,37 @@ export default function Configuracoes() {
   const [mlId, setMlId] = useState('');
   const [shopeeId, setShopeeId] = useState('');
   const [aliexpressId, setAliexpressId] = useState('');
-  const [amazonId, setAmazonId] = useState('');
-  const [amazonAccessKey, setAmazonAccessKey] = useState('');
-  const [amazonSecretKey, setAmazonSecretKey] = useState('');
+  const [amazonId, setAmazonId] = useState('andercleipino-20');
+  const [amazonAccessKey, setAmazonAccessKey] = useState('amzn1.application-oa2-client.27e8dc0d2d1d48b29a171860cf840a12');
+  const [amazonSecretKey, setAmazonSecretKey] = useState('amzn1.oa2-cs.v1.b69c917a94b07978ac42e9a484a4728ce6c7461afe375491a4701179795bb397a');
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadConfig() {
       try {
-        // Try Supabase first
         const config = await getSettings();
-        if (config) {
-          setMlId(config.mercadolivreId || '');
-          setShopeeId(config.shopeeId || '');
-          setAliexpressId(config.aliexpressId || '');
-          setAmazonId(config.amazonId || '');
-          setAmazonAccessKey(config.amazonAccessKey || '');
-          setAmazonSecretKey(config.amazonSecretKey || '');
-        } else {
-          // Fallback to localStorage if Supabase has nothing
-          const local = localStorage.getItem('affiliateConfig');
-          if (local) {
-            const parsed = JSON.parse(local);
-            setMlId(parsed.mercadolivreId || '');
-            setShopeeId(parsed.shopeeId || '');
-            setAliexpressId(parsed.aliexpressId || '');
-            setAmazonId(parsed.amazonId || '');
-            setAmazonAccessKey(parsed.amazonAccessKey || '');
-            setAmazonSecretKey(parsed.amazonSecretKey || '');
-          }
-        }
+        const local = localStorage.getItem('affiliateConfig');
+        const localParsed = local ? JSON.parse(local) : null;
+        
+        // Merge strategy: Database > LocalStorage > Default State
+        const final = {
+          mercadolivreId: config?.mercadolivreId || localParsed?.mercadolivreId || '',
+          shopeeId: config?.shopeeId || localParsed?.shopeeId || '',
+          aliexpressId: config?.aliexpressId || localParsed?.aliexpressId || '',
+          amazonId: config?.amazonId || localParsed?.amazonId || 'andercleipino-20',
+          amazonAccessKey: config?.amazonAccessKey || localParsed?.amazonAccessKey || 'amzn1.application-oa2-client.27e8dc0d2d1d48b29a171860cf840a12',
+          amazonSecretKey: config?.amazonSecretKey || localParsed?.amazonSecretKey || 'amzn1.oa2-cs.v1.b69c917a94b07978ac42e9a484a4728ce6c7461afe375491a4701179795bb397a',
+        };
+
+        const isDummy = (val: string) => !val || val.toLowerCase().includes('dummy') || val === 'password123';
+
+        setMlId(final.mercadolivreId);
+        setShopeeId(final.shopeeId);
+        setAliexpressId(final.aliexpressId);
+        setAmazonId(isDummy(final.amazonId) ? 'andercleipino-20' : final.amazonId);
+        setAmazonAccessKey(isDummy(final.amazonAccessKey) ? 'amzn1.application-oa2-client.27e8dc0d2d1d48b29a171860cf840a12' : final.amazonAccessKey);
+        setAmazonSecretKey(isDummy(final.amazonSecretKey) ? 'amzn1.oa2-cs.v1.b69c917a94b07978ac42e9a484a4728ce6c7461afe375491a4701179795bb397a' : final.amazonSecretKey);
       } catch (error) {
         console.error('Failed to load settings:', error);
       } finally {

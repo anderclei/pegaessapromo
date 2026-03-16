@@ -14,6 +14,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const { product, affiliateLink } = await request.json();
+    console.log('API: Creating promotion for product:', { title: product?.title, type: product?.type });
     
     if (!product || !affiliateLink) {
       return NextResponse.json({ error: 'Dados inválidos' }, { status: 400 });

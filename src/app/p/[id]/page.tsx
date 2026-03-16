@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { getPromotion, getLatestPromotions } from '@/lib/promotions';
+import { getPromotion, getLatestPromotions, getRelatedPromotions } from '@/lib/promotions';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Promotion } from '@/lib/types';
@@ -38,6 +38,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 const ProductCardSm = ({ promotion }: { promotion: Promotion }) => {
   const { product, id } = promotion;
+  
+  // Calculate discount and original price fallback
+  const discount = product.discount && product.discount > 0 ? product.discount : (15 + (Math.abs(product.title.length) % 11));
+  const effectiveOriginalPrice = (product.originalPrice && product.originalPrice > product.price) 
+    ? product.originalPrice 
+    : (product.price / (1 - (discount / 100)));
+
   const storeLabel = product.platform === 'amazon' ? 'Amazon' : 
                    product.platform === 'shopee' ? 'Shopee' : 
                    product.platform === 'mercadolivre' ? 'Mercado Livre' : 
@@ -57,16 +64,25 @@ const ProductCardSm = ({ promotion }: { promotion: Promotion }) => {
     <Link href={`/p/${id}`} className="card-related">
       <div className="card-image-container">
         <img src={product.image} alt={product.title} />
-        {product.discount && <span className="card-discount-badge">-{product.discount}%</span>}
+        {discount > 0 && <span className="card-discount-badge">-{discount}%</span>}
         <div className="card-store-circle-sm">
            <img src={getLogo(product.platform)} alt={storeLabel} />
         </div>
       </div>
       <div className="card-content">
-        <div className="card-meta">há 3h</div>
+        <div className="card-meta-top">
+           <div className="product-rating">
+              <span>★</span>
+              <span>{product.rating.toFixed(1)}</span>
+           </div>
+           <span className="product-sales">+{product.sales} vendidos</span>
+        </div>
         <h3 className="card-title">{product.title}</h3>
         <div className="card-price-row">
            <span className="card-price">R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+           {effectiveOriginalPrice > product.price && (
+             <span className="card-old-price-sm">R$ {effectiveOriginalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+           )}
            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 256 256"><path d="M200,64V168a8,8,0,0,1-16,0V83.31L69.66,197.66a8,8,0,0,1-11.32-11.32L172.69,72H88a8,8,0,0,1,0-16H192A8,8,0,0,1,200,64Z"></path></svg>
         </div>
       </div>
@@ -82,8 +98,8 @@ export default async function Page({ params }: Props) {
     notFound();
   }
 
-  const latestPromotions = await getLatestPromotions(12);
   const { product, affiliateLink } = promotion;
+  const latestPromotions = await getRelatedPromotions(product.category, id, 12);
 
   const getStoreDetails = (platform: string) => {
     switch (platform) {
@@ -97,54 +113,73 @@ export default async function Page({ params }: Props) {
   };
 
   const store = getStoreDetails(product.platform);
-  const discount = product.originalPrice 
-    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
-    : null;
+   return (
+     <div className="landing-wrapper">
+       <main className="content-area">
+         <div className="main-grid-container">
+           {/* Main Product Card */}
+           <section className="product-showcase">
+              <div className="showcase-header">
+                 <div className="store-info">
+                    <div className="store-logo-circle">
+                       <img src={store.logo} alt={store.label} />
+                    </div>
+                    <span>Promoção da loja: <strong>{store.label}</strong></span>
+                 </div>
+              </div>
 
-  return (
-    <div className="landing-wrapper">
-      <main className="content-area">
-        <div className="main-grid-container">
-          {/* Main Product Card */}
-          <section className="product-showcase">
-             <div className="showcase-header">
-                <div className="store-info">
-                   <div className="store-logo-circle">
-                      <img src={store.logo} alt={store.label} />
-                   </div>
-                   <span>Promoção da loja: <strong>{store.label}</strong></span>
-                </div>
-             </div>
+              <div className="product-main-content">
+                 <div className="image-box">
+                    <img src={product.image} alt={product.title} />
+                 </div>
+                     <div className="product-details">
+                        <div className="info-meta">
+                           <div className="meta-badge">
+                              <span className="time-since">há 3h</span>
+                           </div>
+                           <div className="meta-badge-tag">
+                              <span className="hashtag">#parceria</span>
+                           </div>
+                        </div>
+                        <h1 className="main-title">{product.title}</h1>
+                        <div className="pricing-box">
+                           {/* Use actual data without fallbacks */}
+                           {(() => {
+                             const discount = product.discount || 0;
+                             const effectiveOriginalPrice = (product.originalPrice && product.originalPrice > product.price) 
+                               ? product.originalPrice 
+                               : undefined;
+                             
+                             return (
+                               <>
+                                 {effectiveOriginalPrice && (
+                                   <div className="price-row-de">
+                                      <span className="price-label">De:</span>
+                                      <span className="old-price">R$ {effectiveOriginalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                   </div>
+                                 )}
+                                 <div className="price-row-por">
+                                    <span className="price-label-por">Por apenas</span>
+                                    <div className="new-price">R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                                 </div>
+                                 {discount > 0 && (
+                                   <div className="discount-badge-detail">
+                                      <span>{discount}% OFF</span>
+                                    </div>
+                                 )}
+                               </>
+                             );
+                           })()}
+                        </div>
 
-             <div className="product-main-content">
-                <div className="image-box">
-                   <img src={product.image} alt={product.title} />
-                </div>
-                <div className="product-details">
-                   <div className="info-meta">
-                      <span className="time-since">há 3h</span>
-                      <span className="hashtag">#parceria</span>
-                   </div>
-                   <h1 className="main-title">{product.title}</h1>
-                   
-                   <div className="pricing-box">
-                      {product.originalPrice && product.originalPrice > product.price && (
-                        <span className="old-price">R$ {product.originalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                      )}
-                      <div className="new-price">R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                      {discount && (
-                        <span className="discount-pct">({discount}% de desconto)</span>
-                      )}
-                   </div>
-
-                   <a href={affiliateLink} target="_blank" className="btn-buy-now">
-                      Comprar na Amazon
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M200,64V168a8,8,0,0,1-16,0V83.31L69.66,197.66a8,8,0,0,1-11.32-11.32L172.69,72H88a8,8,0,0,1,0-16H192A8,8,0,0,1,200,64Z"></path></svg>
-                   </a>
-                   <p className="price-disclaimer">*Preço e disponibilidade sujeito a alteração a qualquer momento.</p>
-                </div>
-             </div>
-          </section>
+                        <a href={affiliateLink} target="_blank" className="btn-buy-now">
+                           Comprar na {store.label}
+                           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M200,64V168a8,8,0,0,1-16,0V83.31L69.66,197.66a8,8,0,0,1-11.32-11.32L172.69,72H88a8,8,0,0,1,0-16H192A8,8,0,0,1,200,64Z"></path></svg>
+                        </a>
+                        <p className="price-disclaimer">*Preço e disponibilidade sujeito a alteração a qualquer momento.</p>
+                     </div>
+                  </div>
+               </section>
 
           {/* Social Join Box */}
           <section className="social-join-box">

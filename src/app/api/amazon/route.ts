@@ -15,11 +15,74 @@ export async function GET(request: Request) {
       const content = fs.readFileSync(HOT_PRODUCTS_FILE, 'utf-8');
       const hotData = JSON.parse(content);
       
+      // AUTOMATIC SYNC LOGIC: Every :00 and :30 (UTC-3 / Brasilia)
+      const now = new Date();
+      const lastSync = hotData.lastSync ? new Date(hotData.lastSync) : new Date(0);
+      
+      // Calculate how many minutes since the last sync
+      const diffMs = now.getTime() - lastSync.getTime();
+      const diffMins = diffMs / (1000 * 60);
+
+      // Trigger if:
+      // 1. More than 30 mins since last sync OR
+      // 2. We just crossed a :00 or :30 mark (e.g. last was 16:29, now is 16:31)
+      const crossed00 = lastSync.getHours() !== now.getHours();
+      const crossed30 = (lastSync.getMinutes() < 30 && now.getMinutes() >= 30) || crossed00;
+      
+      if (diffMins >= 30 || crossed30) {
+        console.log(`[AutoSync] Triggering scheduled sync (Last: ${lastSync.toISOString()}, Now: ${now.toISOString()})...`);
+        fetch(`${new URL(request.url).origin}/api/amazon/sync`, { 
+          method: 'POST', 
+          body: JSON.stringify({ config: { isAuto: true } }),
+          headers: { 'Content-Type': 'application/json' }
+        }).catch(() => {});
+      }
+
       let products = [];
+      
+      // Load active category IDs to filter out deleted/deactivated ones
+      let activeCatIds: string[] = [];
+      try {
+        const catsPath = path.join(process.cwd(), 'src/data', 'categories.json');
+        if (fs.existsSync(catsPath)) {
+          const catsData = JSON.parse(fs.readFileSync(catsPath, 'utf-8'));
+          activeCatIds = catsData.map((c: any) => c.id);
+        }
+      } catch (e) {}
+
       if (category === 'todos') {
-        products = Object.values(hotData).flat().sort(() => 0.5 - Math.random());
+        // Balanced approach: Pick best deals from EACH category to ensure variety
+        const balancedProducts: any[] = [];
+        const perCategoryLimit = 15; // Max products to take from each category for the main feed
+        
+        // 1. Add Global Deals first (High priority)
+        const globalDeals = hotData['ofertas_gerais'] || [];
+        balancedProducts.push(...globalDeals.slice(0, 10));
+
+        // 2. Add best from each active category
+        Object.entries(hotData as Record<string, any[]>).forEach(([key, items]) => {
+          if (activeCatIds.includes(key) && Array.isArray(items)) {
+            // Sort by discount for this specific category slice
+            const sortedItems = [...items].sort((a, b) => (b.discount || 0) - (a.discount || 0));
+            balancedProducts.push(...sortedItems.slice(0, perCategoryLimit));
+          }
+        });
+
+        // 3. Shuffle for dynamic feel
+        products = balancedProducts.sort(() => Math.random() - 0.5);
       } else {
-        products = hotData[category] || [];
+        // Get specific category plus matching global deals
+        // Only return if category is active
+        if (activeCatIds.includes(category)) {
+          products = (hotData[category] || []);
+        }
+        
+        // Also add global deals that might be relevant or just fill the list
+        const globalDeals = hotData['ofertas_gerais'] || [];
+        // If we have few products, supplement with global deals
+        if (products.length < 20) {
+          products = [...products, ...globalDeals];
+        }
       }
 
       if (products.length > 0) {
@@ -28,8 +91,20 @@ export async function GET(request: Request) {
     }
 
     // 2. Fallback to dynamic scraping if no synced data
-    const products = await scrapeAmazon(category);
-    return NextResponse.json({ products, source: 'dynamic' });
+    const type = searchParams.get('type') || 'bestsellers';
+    
+    // Try to find custom slug from categories.json
+    let amazonSlug: string | undefined = undefined;
+    try {
+      const catsPath = path.join(process.cwd(), 'src/data', 'categories.json');
+      if (fs.existsSync(catsPath)) {
+        const cats = JSON.parse(fs.readFileSync(catsPath, 'utf-8'));
+        amazonSlug = cats.find((c: any) => c.id === category)?.amazonSlug;
+      }
+    } catch (e) {}
+
+    const products = await scrapeAmazon(category, type, amazonSlug);
+    return NextResponse.json({ products, source: 'dynamic', type });
   } catch (error) {
     console.error('Error in Amazon API:', error);
     return NextResponse.json({ error: 'Erro ao buscar do Amazon', products: [] }, { status: 500 });

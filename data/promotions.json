@@ -1,22 +1,4 @@
 {
-  "f8bTWlIe": {
-    "id": "f8bTWlIe",
-    "product": {
-      "id": "test-direct-123",
-      "title": "Produto de Teste Premium",
-      "price": 99.9,
-      "originalPrice": 150,
-      "image": "https://m.media-amazon.com/images/I/71Y8T1jLdFL._AC_SL1500_.jpg",
-      "rating": 4.8,
-      "sales": 1500,
-      "reviews": 120,
-      "category": "tecnologia",
-      "platform": "amazon",
-      "url": "https://www.amazon.com.br/dp/B08N5M7S6K"
-    },
-    "affiliateLink": "https://www.amazon.com.br/dp/B08N5M7S6K?tag=test-20",
-    "createdAt": "2026-03-12T23:30:31.503Z"
-  },
   "rxmQaz1S": {
     "id": "rxmQaz1S",
     "product": {
@@ -190,7 +172,7 @@
       "url": "https://www.amazon.com.br/Pedal-Guitarra-Multi-Efeitos-Recarreg%C3%A1vel-Presets/dp/B0D2RLMSM8/ref=zg_bs_g_musical-instruments_d_sccl_8/135-7771775-2504213?psc=1",
       "freeShipping": true
     },
-    "affiliateLink": "https://www.amazon.com.br/Pedal-Guitarra-Multi-Efeitos-Recarreg%C3%A1vel-Presets/dp/B0D2RLMSM8/ref=zg_bs_g_musical-instruments_d_sccl_8/135-7771775-2504213?psc=1&tag=dummy-tag-20",
+    "affiliateLink": "https://www.amazon.com.br/Pedal-Guitarra-Multi-Efeitos-Recarreg%C3%A1vel-Presets/dp/B0D2RLMSM8/ref=zg_bs_g_musical-instruments_d_sccl_8/135-7771775-2504213?psc=1&tag=test-20",
     "createdAt": "2026-03-13T00:58:55.195Z"
   },
   "TSgTdneA": {
@@ -208,7 +190,7 @@
       "url": "https://www.amazon.com.br/Ouvido-JBL-Bluetooth-Auricular-Resistente/dp/B0DHL63KWK/ref=zg_bs_g_musical-instruments_d_sccl_3/135-7771775-2504213?psc=1",
       "freeShipping": true
     },
-    "affiliateLink": "https://www.amazon.com.br/Ouvido-JBL-Bluetooth-Auricular-Resistente/dp/B0DHL63KWK/ref=zg_bs_g_musical-instruments_d_sccl_3/135-7771775-2504213?psc=1&tag=dummy-tag-20",
+    "affiliateLink": "https://www.amazon.com.br/Ouvido-JBL-Bluetooth-Auricular-Resistente/dp/B0DHL63KWK/ref=zg_bs_g_musical-instruments_d_sccl_3/135-7771775-2504213?psc=1&tag=test-20",
     "createdAt": "2026-03-13T01:00:24.959Z"
   },
   "3TA8PHqz": {
@@ -226,7 +208,7 @@
       "url": "https://www.amazon.com.br/Ouvido-Havit-H630bt-Dura%C3%A7%C3%A3o-Bateria/dp/B0C6MSDKYT/ref=zg_bs_g_musical-instruments_d_sccl_9/138-7466314-6722769?psc=1",
       "freeShipping": true
     },
-    "affiliateLink": "https://www.amazon.com.br/Ouvido-Havit-H630bt-Dura%C3%A7%C3%A3o-Bateria/dp/B0C6MSDKYT/ref=zg_bs_g_musical-instruments_d_sccl_9/138-7466314-6722769?psc=1&tag=dummy-tag-20",
+    "affiliateLink": "https://www.amazon.com.br/Ouvido-Havit-H630bt-Dura%C3%A7%C3%A3o-Bateria/dp/B0C6MSDKYT/ref=zg_bs_g_musical-instruments_d_sccl_9/138-7466314-6722769?psc=1&tag=test-20",
     "createdAt": "2026-03-13T01:01:21.984Z"
   },
   "1nmEn5Va": {
@@ -262,7 +244,7 @@
       "url": "https://www.amazon.com.br/Pedal-Guitarra-Multi-Efeitos-Recarreg%C3%A1vel-Presets/dp/B0D2RLMSM8/ref=zg_bs_g_musical-instruments_d_sccl_8/142-0827905-1475666?psc=1",
       "freeShipping": true
     },
-    "affiliateLink": "https://www.amazon.com.br/Pedal-Guitarra-Multi-Efeitos-Recarreg%C3%A1vel-Presets/dp/B0D2RLMSM8/ref=zg_bs_g_musical-instruments_d_sccl_8/142-0827905-1475666?psc=1&tag=dummy-tag-20",
+    "affiliateLink": "https://www.amazon.com.br/Pedal-Guitarra-Multi-Efeitos-Recarreg%C3%A1vel-Presets/dp/B0D2RLMSM8/ref=zg_bs_g_musical-instruments_d_sccl_8/142-0827905-1475666?psc=1&tag=test-20",
     "createdAt": "2026-03-13T01:17:39.145Z"
   }
 }
