@@ -88,8 +88,13 @@ export async function scrapeAmazon(category: string = 'todos', type: string = 'b
                           
         const originalPriceText = $el.find('.a-price.a-text-price .a-offscreen').first().text().trim() ||
                                   $el.find('.a-text-strike').first().text().trim() ||
-                                  $el.find('.basisPrice').text().trim() ||
-                                  $el.find('.a-color-secondary.a-text-strike').text().trim();
+                                  $el.find('.basisPrice').first().text().trim() ||
+                                  $el.find('.a-color-secondary.a-text-strike').first().text().trim() ||
+                                  $el.find('[data-a-strike="true"]').first().text().trim();
+
+        // NEW: Capture discount percentage directly from list if available
+        const discountText = $el.find('.savingsPercentage, .reinventPriceSavingsPercentageMargin').first().text().trim() ||
+                             $el.find('.a-color-price').filter((_, e) => $(e).text().includes('%')).first().text().trim();
                                   
         const image = $el.find('img').attr('src');
         const relativeLink = $el.find('a.a-link-normal').attr('href');
@@ -109,14 +114,28 @@ export async function scrapeAmazon(category: string = 'todos', type: string = 'b
           const price = cleanPrice(priceText);
           let originalPrice = originalPriceText ? cleanPrice(originalPriceText) : undefined;
           
-          // DO NOT fake original price anymore. If it's missing, it's missing.
+          let discount = 0;
+          if (discountText && discountText.includes('%')) {
+            const dMatch = discountText.match(/(\d+)%/);
+            if (dMatch) discount = parseInt(dMatch[1]);
+          }
+
           if (originalPrice && originalPrice <= price) {
             originalPrice = undefined;
           }
 
+          // If we have price and discount but no originalPrice, reconstruct it
+          if (!originalPrice && discount > 0 && price > 0) {
+            originalPrice = Math.round((price / (1 - (discount / 100))) * 100) / 100;
+          }
+          
+          // If we have originalPrice but no discount, calculate it
+          if (!discount && originalPrice && originalPrice > price) {
+            discount = Math.round(((originalPrice - price) / originalPrice) * 100);
+          }
+
           let rating = parseFloat(ratingText.split(' ')[0].replace(',', '.')) || 0;
           let reviews = parseInt(reviewsText.replace(/[^\d]/g, '')) || 0;
-          let discount = originalPrice ? Math.round(((originalPrice - price) / originalPrice) * 100) : undefined;
           
           if (rating === 0) rating = parseFloat((4.0 + Math.random() * 0.9).toFixed(1));
           if (reviews === 0) reviews = Math.floor(Math.random() * 800) + 20;
@@ -139,6 +158,7 @@ export async function scrapeAmazon(category: string = 'todos', type: string = 'b
             title,
             price: price,
             originalPrice: originalPrice,
+            discount: discount,
             image: image || '',
             rating: rating,
             sales: sales,
@@ -148,7 +168,6 @@ export async function scrapeAmazon(category: string = 'todos', type: string = 'b
             platform: 'amazon',
             url: relativeLink?.startsWith('http') ? relativeLink : `https://www.amazon.com.br${relativeLink}`,
             freeShipping: true,
-            discount: discount,
             type: type as any,
           });
         }
@@ -388,7 +407,8 @@ export async function hydrateAmazonPrice(product: Product): Promise<Product> {
 
     // New: Attempt to find the discount percentage directly if available (e.g., "-24%")
     let directDiscount = 0;
-    const discountElementText = $('.savingPriceOverride, .priceBlockSavingsString, .bundle-v2-savings-badge').first().text().trim() ||
+    const discountElementText = $('.savingsPercentage, .reinventPriceSavingsPercentageMargin').first().text().trim() || 
+                                $('.savingPriceOverride, .priceBlockSavingsString, .bundle-v2-savings-badge').first().text().trim() ||
                                 $('.a-size-large.a-color-price.savingPriceOverride').text().trim();
     
     if (discountElementText && discountElementText.includes('%')) {
