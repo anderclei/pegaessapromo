@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Product, Platform } from '@/lib/types';
 import { generateAllCopies, buildAffiliateLink, COPY_TEMPLATES } from '@/lib/copywriter';
+import { BotStatus, WhatsAppGroup, PostLog } from '@/lib/bots/types';
 import './admin.css';
 
 const formatPrice = (price: number) => {
@@ -57,6 +58,16 @@ export default function AdminDashboard() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [activePlatform, setActivePlatform] = useState<Platform>('amazon');
+  
+  // WhatsApp Bot State
+  const [botStatus, setBotStatus] = useState<BotStatus>('disconnected');
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [wpGroups, setWpGroups] = useState<WhatsAppGroup[]>([]);
+  const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
+  const [scheduleEnabled, setScheduleEnabled] = useState(false);
+  const [logs, setLogs] = useState<PostLog[]>([]);
+  const [activeBotTab, setActiveBotTab] = useState<'connection' | 'groups' | 'logs'>('connection');
+  const [loadingGroups, setLoadingGroups] = useState(false);
   
   // Settings State
   const [affiliateConfig, setAffiliateConfig] = useState({ 
@@ -148,9 +159,82 @@ export default function AdminDashboard() {
     } catch (err) { console.error(err); }
   };
 
+  // --- WhatsApp Bot Actions ---
+  const handleStartBot = async () => {
+    setBotStatus('connecting');
+    try {
+      const res = await fetch('/api/bots/whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'start' })
+      });
+      const data = await res.json();
+      if (data.state) {
+        setBotStatus(data.state.status);
+        setQrCode(data.state.qrCode);
+      }
+    } catch (e) {
+      setBotStatus('error');
+      console.error(e);
+    }
+  };
+
+  const handleStopBot = async () => {
+    try {
+      await fetch('/api/bots/whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'stop' })
+      });
+      setBotStatus('disconnected');
+      setQrCode(null);
+    } catch (e) { console.error(e); }
+  };
+
+  const syncBotState = useCallback(async () => {
+    try {
+      const res = await fetch('/api/bots/whatsapp');
+      const data = await res.json();
+      setBotStatus(data.status);
+      setQrCode(data.qrCode);
+      if (data.groups && data.groups.length > 0) setWpGroups(data.groups);
+
+      const schRes = await fetch('/api/bots/schedule');
+      const schData = await schRes.json();
+      setScheduleEnabled(schData.isRunning);
+      setSelectedGroups(schData.selectedGroups || []);
+      if (schData.logs) setLogs(schData.logs);
+    } catch (e) { console.error(e); }
+  }, []);
+
+  const handleToggleSchedule = async () => {
+    const action = scheduleEnabled ? 'stop' : 'start';
+    try {
+      const res = await fetch('/api/bots/schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action, 
+          groups: selectedGroups,
+          affiliateConfig
+        })
+      });
+      if (res.ok) setScheduleEnabled(!scheduleEnabled);
+    } catch (e) { console.error(e); }
+  };
+
+  const toggleGroup = (id: string) => {
+    setSelectedGroups(prev => 
+      prev.includes(id) ? prev.filter(g => g !== id) : [...prev, id]
+    );
+  };
+
 
 
   useEffect(() => {
+    syncBotState();
+    const interval = setInterval(syncBotState, 5000);
+    
     const loadConfig = async () => {
       try {
         const res = await fetch('/api/settings');
@@ -193,7 +277,9 @@ export default function AdminDashboard() {
       .then(res => res.json())
       .then(data => setDbCategories(data))
       .catch(console.error);
-  }, [activePlatform]);
+
+    return () => clearInterval(interval);
+  }, [activePlatform, syncBotState]);
 
   const handleSaveSettings = async () => {
     localStorage.setItem('affiliateConfig', JSON.stringify(affiliateConfig));
@@ -328,11 +414,177 @@ export default function AdminDashboard() {
 
         {activeTab === 'bots' && (
           <section className="settings-section">
-            <h2>🤖 Configuração de Bots</h2>
-            <div className="empty-state">
-               <p style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Em breve...</p>
-               <p>Estamos trabalhando na integração direta com bots de Telegram e WhatsApp.</p>
+            <div className="admin-header-row" style={{ marginBottom: '1.5rem' }}>
+              <div className="admin-title-section">
+                <h2>🤖 Gestor de Automação WhatsApp</h2>
+                <p>Conecte o robô e selecione os grupos para postagens automáticas com IA.</p>
+              </div>
+              <div className="bot-status-badge" style={{ 
+                padding: '6px 12px', 
+                borderRadius: '20px', 
+                fontSize: '0.8rem',
+                fontWeight: 'bold',
+                backgroundColor: botStatus === 'connected' ? '#dcfce7' : '#fee2e2',
+                color: botStatus === 'connected' ? '#166534' : '#991b1b',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: botStatus === 'connected' ? '#22c55e' : '#ef4444' }}></div>
+                {botStatus.toUpperCase()}
+              </div>
             </div>
+
+            <div className="admin-tabs" style={{ marginBottom: '1.5rem', borderBottom: 'none' }}>
+              <button 
+                onClick={() => setActiveBotTab('connection')}
+                className={`admin-tab ${activeBotTab === 'connection' ? 'active' : ''}`}
+                style={{ fontSize: '0.75rem', padding: '8px 16px' }}
+              >
+                🔗 Conexão
+              </button>
+              <button 
+                onClick={() => setActiveBotTab('groups')}
+                className={`admin-tab ${activeBotTab === 'groups' ? 'active' : ''}`}
+                style={{ fontSize: '0.75rem', padding: '8px 16px' }}
+              >
+                👥 Grupos Automáticos
+              </button>
+              <button 
+                onClick={() => setActiveBotTab('logs')}
+                className={`admin-tab ${activeBotTab === 'logs' ? 'active' : ''}`}
+                style={{ fontSize: '0.75rem', padding: '8px 16px' }}
+              >
+                📜 Relatório de Envios
+              </button>
+            </div>
+
+            {activeBotTab === 'connection' && (
+              <div className="admin-card" style={{ textAlign: 'center', padding: '3rem 2rem' }}>
+                {botStatus === 'disconnected' && (
+                  <>
+                    <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📱</div>
+                    <h3>Conectar WhatsApp</h3>
+                    <p style={{ color: '#64748b', marginBottom: '2rem' }}>Inicie o robô para gerar o QR Code de conexão.</p>
+                    <button className="btn btn-primary" onClick={handleStartBot}>🚀 Iniciar Robô de Vendas</button>
+                  </>
+                )}
+
+                {botStatus === 'connecting' && <div className="admin-loading">Iniciando servidor do bot...</div>}
+
+                {botStatus === 'qr_ready' && qrCode && (
+                  <div style={{ background: 'white', padding: '2rem', borderRadius: '15px', display: 'inline-block', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}>
+                    <h3 style={{ marginBottom: '1rem', color: '#000' }}>Escaneie o QR Code</h3>
+                    <img src={qrCode} alt="WhatsApp QR Code" style={{ width: '250px', height: '250px' }} />
+                    <p style={{ marginTop: '1rem', fontSize: '0.85rem', color: '#666' }}>Abra o WhatsApp {'>'} Aparelhos Conectados</p>
+                  </div>
+                )}
+
+                {botStatus === 'connected' && (
+                   <div style={{ padding: '2rem' }}>
+                      <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>✅</div>
+                      <h3 style={{ color: '#000' }}>Robô Conectado e Ativo!</h3>
+                      <p style={{ color: '#64748b', marginBottom: '2rem' }}>O sistema está pronto para monitorar as melhores ofertas da Amazon.</p>
+                      <button className="btn btn-delete" style={{ padding: '10px 20px' }} onClick={handleStopBot}>Desconectar Aparelho</button>
+                   </div>
+                )}
+              </div>
+            )}
+
+            {activeBotTab === 'groups' && (
+              <div className="admin-card">
+                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                    <div>
+                      <h3>Seleção de Grupos Alvo</h3>
+                      <p style={{ fontSize: '0.85rem' }}>Escolha em quais grupos o robô deve postar as ofertas.</p>
+                    </div>
+                    <button 
+                      className={`btn ${scheduleEnabled ? 'btn-delete' : 'btn-primary'}`}
+                      onClick={handleToggleSchedule}
+                      disabled={botStatus !== 'connected' || selectedGroups.length === 0}
+                      style={{ opacity: (botStatus !== 'connected' || selectedGroups.length === 0) ? 0.5 : 1 }}
+                    >
+                      {scheduleEnabled ? '🛑 Parar Automação' : '⚡ Ativar Postagem IA'}
+                    </button>
+                 </div>
+
+                 {botStatus !== 'connected' ? (
+                   <div style={{ textAlign: 'center', padding: '2rem', background: '#f8fafc', borderRadius: '10px', color: '#64748b' }}>
+                      Primeiro conecte o WhatsApp na aba <b>Conexão</b> para listar seus grupos.
+                   </div>
+                 ) : (
+                   <div className="groups-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
+                      {wpGroups.map(group => (
+                        <div key={group.id} 
+                          onClick={() => toggleGroup(group.id)}
+                          style={{ 
+                            padding: '1rem', 
+                            borderRadius: '12px', 
+                            border: '1px solid',
+                            borderColor: selectedGroups.includes(group.id) ? '#22c55e' : '#e2e8f0',
+                            backgroundColor: selectedGroups.includes(group.id) ? '#f0fdf4' : 'white',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          <div style={{ 
+                            width: '24px', 
+                            height: '24px', 
+                            borderRadius: '50%', 
+                            border: '2px solid',
+                            borderColor: selectedGroups.includes(group.id) ? '#22c55e' : '#cbd5e1',
+                            backgroundColor: selectedGroups.includes(group.id) ? '#22c55e' : 'transparent',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            fontSize: '14px'
+                          }}>
+                            {selectedGroups.includes(group.id) && '✓'}
+                          </div>
+                          <div style={{ overflow: 'hidden' }}>
+                            <div style={{ fontWeight: 'bold', whiteSpace: 'nowrap', textOverflow: 'ellipsis', color: '#000' }}>{group.name}</div>
+                            <div style={{ fontSize: '11px', color: '#64748b' }}>{group.participantsCount} participantes</div>
+                          </div>
+                        </div>
+                      ))}
+                      {wpGroups.length === 0 && <div className="admin-loading">Buscando grupos no seu WhatsApp...</div>}
+                   </div>
+                 )}
+              </div>
+            )}
+
+            {activeBotTab === 'logs' && (
+              <div className="admin-card">
+                 <h3>Relatório de Atividade Recente</h3>
+                 <div style={{ marginTop: '1.5rem' }}>
+                    {logs.map(log => (
+                      <div key={log.id} style={{ 
+                        padding: '12px', 
+                        borderBottom: '1px solid #f1f5f9', 
+                        display: 'flex', 
+                        justifyContent: 'space-between',
+                        fontSize: '0.9rem'
+                      }}>
+                        <div>
+                          <span style={{ fontWeight: 'bold', color: '#000' }}>{log.productTitle}</span>
+                          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Postado em: {log.groupName}</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ color: log.status === 'success' ? '#22c55e' : '#ef4444', fontWeight: 'bold' }}>
+                            {log.status === 'success' ? 'Sucesso' : 'Erro'}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{new Date(log.timestamp).toLocaleTimeString()}</div>
+                        </div>
+                      </div>
+                    ))}
+                    {logs.length === 0 && <p style={{ textAlign: 'center', color: '#94a3b8', padding: '2rem' }}>Nenhum envio registrado ainda.</p>}
+                 </div>
+              </div>
+            )}
           </section>
         )}
 
