@@ -163,6 +163,7 @@ export default function AdminDashboard() {
   // --- WhatsApp Bot Actions ---
   const handleStartBot = async () => {
     setBotStatus('connecting');
+    setQrCode(null);
     try {
       const res = await fetch('/api/bots/whatsapp', {
         method: 'POST',
@@ -484,13 +485,37 @@ export default function AdminDashboard() {
                   </>
                 )}
 
-                {botStatus === 'connecting' && <div className="admin-loading">Iniciando servidor do bot...</div>}
+                {botStatus === 'connecting' && (
+                  <div style={{ padding: '2rem' }}>
+                    <div className="admin-loading">Iniciando servidor do bot...</div>
+                    <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '1rem' }}>Isso pode levar até 30 segundos na primeira vez.</p>
+                    <button className="btn btn-sm" style={{ marginTop: '1rem' }} onClick={syncBotState}>🔄 Verificar Status Manualmente</button>
+                  </div>
+                )}
+                
+                {botStatus === 'error' && (
+                  <div style={{ padding: '2rem' }}>
+                    <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>❌</div>
+                    <h3>Erro ao Iniciar</h3>
+                    <p style={{ color: '#64748b', marginBottom: '2rem' }}>Houve um problema ao carregar o WhatsApp. Tente novamente.</p>
+                    <button className="btn btn-primary" onClick={handleStartBot}>Tentar Novamente</button>
+                  </div>
+                )}
 
-                {botStatus === 'qr_ready' && qrCode && (
+                {botStatus === 'qr_ready' && (
                   <div style={{ background: 'white', padding: '2rem', borderRadius: '15px', display: 'inline-block', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}>
                     <h3 style={{ marginBottom: '1rem', color: '#000' }}>Escaneie o QR Code</h3>
-                    <img src={qrCode} alt="WhatsApp QR Code" style={{ width: '250px', height: '250px' }} />
-                    <p style={{ marginTop: '1rem', fontSize: '0.85rem', color: '#666' }}>Abra o WhatsApp {'>'} Aparelhos Conectados</p>
+                    {qrCode ? (
+                      <>
+                        <img src={qrCode} alt="WhatsApp QR Code" style={{ width: '250px', height: '250px' }} />
+                        <p style={{ marginTop: '1rem', fontSize: '0.85rem', color: '#666' }}>Abra o WhatsApp {'>'} Aparelhos Conectados</p>
+                      </>
+                    ) : (
+                      <div style={{ padding: '2rem' }}>
+                        <div className="admin-loading">Gerando QR Code...</div>
+                        <button className="btn btn-sm" style={{ marginTop: '1rem' }} onClick={syncBotState}>🔄 Forçar Atualização</button>
+                      </div>
+                    )}
                   </div>
                 )}
 
