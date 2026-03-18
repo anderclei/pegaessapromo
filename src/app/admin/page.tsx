@@ -68,7 +68,9 @@ export default function AdminDashboard() {
     mercadolivreId: '', 
     lomadeeId: '',
     awinId: '',
-    rakutenId: ''
+    rakutenId: '',
+    geminiKey: '',
+    siteUrl: 'https://pegaessapromo.com.br'
   });
   const [saveStatus, setSaveStatus] = useState(false);
   
@@ -165,7 +167,9 @@ export default function AdminDashboard() {
           ...parsed,
           amazonId: (isTestData || !parsed.amazonId) ? prev.amazonId : parsed.amazonId,
           amazonAccessKey: (isTestData || !parsed.amazonAccessKey) ? prev.amazonAccessKey : parsed.amazonAccessKey,
-          amazonSecretKey: (isTestData || !parsed.amazonSecretKey) ? prev.amazonSecretKey : parsed.amazonSecretKey
+          amazonSecretKey: (isTestData || !parsed.amazonSecretKey) ? prev.amazonSecretKey : parsed.amazonSecretKey,
+          geminiKey: parsed.geminiKey || '',
+          siteUrl: parsed.siteUrl || 'https://pegaessapromo.com.br'
         })); 
       } catch {}
     }
@@ -213,11 +217,18 @@ export default function AdminDashboard() {
 
         {activeTab === 'settings' && (
           <section className="settings-section">
-            <h2>Configurações de Afiliado</h2>
-            <p>Configure suas chaves API e Partner Tags Amazon</p>
+            <div className="admin-header-row" style={{ marginBottom: '1.5rem' }}>
+              <div className="admin-title-section">
+                <h2>⚙️ Configurações do Sistema</h2>
+                <p>Gerencie suas chaves de afiliado e integrações com Inteligência Artificial.</p>
+              </div>
+            </div>
 
             <div className="admin-card">
-               <h3>Amazon Brasil</h3>
+               <h3>🛒 Configurações de Afiliado (Amazon)</h3>
+               <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem' }}>
+                 Configure sua Associate Tag e chaves da API Amazon para sincronização automática.
+               </p>
                <div className="form-field">
                   <label style={{ color: '#333', fontWeight: 'bold' }}>Associate Tag (Partner Tag)</label>
                   <input 
@@ -239,18 +250,54 @@ export default function AdminDashboard() {
                <div className="form-field">
                   <label style={{ color: '#333', fontWeight: 'bold' }}>Secret Key</label>
                   <input 
-                    type="text" placeholder="Secret Key"
+                    type="password" placeholder="Sua Secret Key"
                     style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
                     value={affiliateConfig.amazonSecretKey}
                     onChange={e => setAffiliateConfig({...affiliateConfig, amazonSecretKey: e.target.value})}
                   />
                </div>
-               <button 
+            </div>
+
+            <div className="admin-card" style={{ marginTop: '2rem' }}>
+               <h3>🤖 Inteligência Artificial (Gemini)</h3>
+               <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem' }}>
+                 A chave do Gemini é usada para gerar as copys altamente persuasivas para seus grupos automaticamente.
+               </p>
+               <div className="form-field">
+                  <label style={{ color: '#333', fontWeight: 'bold' }}>Google Gemini API Key</label>
+                  <input 
+                    type="password" placeholder="Cole sua chave do AI Studio aqui"
+                    style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
+                    value={affiliateConfig.geminiKey}
+                    onChange={e => setAffiliateConfig({...affiliateConfig, geminiKey: e.target.value})}
+                  />
+               </div>
+            </div>
+
+            <div className="admin-card" style={{ marginTop: '2rem' }}>
+               <h3>🌐 Configurações do Portal</h3>
+               <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem' }}>
+                 URL base usada para gerar os links encurtados que levam os clientes para o seu site.
+               </p>
+               <div className="form-field">
+                  <label style={{ color: '#333', fontWeight: 'bold' }}>URL Base do seu Portal</label>
+                  <input 
+                    type="text" placeholder="Ex: https://pegaessapromo.com.br"
+                    style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
+                    value={affiliateConfig.siteUrl}
+                    onChange={e => setAffiliateConfig({...affiliateConfig, siteUrl: e.target.value})}
+                  />
+               </div>
+            </div>
+
+            <div style={{ marginTop: '2rem', position: 'sticky', bottom: '2rem' }}>
+              <button 
                 className="btn btn-primary settings-save-btn" 
+                style={{ width: '100%', padding: '1.2rem', fontSize: '1.1rem', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}
                 onClick={handleSaveSettings}
-               >
-                 {saveStatus ? '✅ Salvo com Sucesso!' : '💾 Salvar Configurações'}
-               </button>
+              >
+                {saveStatus ? '✅ Todas as Configurações Salvas!' : '💾 Salvar Tudo'}
+              </button>
             </div>
           </section>
         )}
