@@ -1,0 +1,4 @@
+﻿src/app/admin/page.tsx(598,30): error TS2339: Property 'map' does not exist on type 'string | never[] | (<TResult1 = any, TResult2 = never>(onfulfilled?: ((value: any) => TResult1 | PromiseLike<TResult1>) | null | undefined, onrejected?: ((reason: any) => TResult2 | PromiseLike<...>) | null | undefined) => Promise<...>) | ((onfinally?: (() => void) | ... 1 more ... | undefined) => Promise<...>)'.
+  Property 'map' does not exist on type 'string'.
+src/app/admin/page.tsx(598,35): error TS7006: Parameter 'copy' implicitly has an 'any' type.
+src/app/admin/page.tsx(598,41): error TS7006: Parameter 'idx' implicitly has an 'any' type.

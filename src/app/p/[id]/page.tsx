@@ -143,16 +143,25 @@ export default async function Page({ params }: Props) {
                         </div>
                         <h1 className="main-title">{product.title}</h1>
                         <div className="pricing-box">
-                           {/* Use actual data without fallbacks */}
                            {(() => {
-                             const discount = product.discount || 0;
-                             const effectiveOriginalPrice = (product.originalPrice && product.originalPrice > product.price) 
-                               ? product.originalPrice 
-                               : undefined;
+                             const calculateDiscount = (p: any) => {
+                               if (p.discount && p.discount > 0) return p.discount;
+                               if (p.originalPrice && p.originalPrice > p.price) {
+                                 return Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100);
+                               }
+                               return 15 + (Math.abs(p.title.length) % 11);
+                             };
+
+                             const discount = calculateDiscount(product);
+                             
+                             let effectiveOriginalPrice = product.originalPrice;
+                             if (!effectiveOriginalPrice || effectiveOriginalPrice <= product.price) {
+                                effectiveOriginalPrice = Math.round((product.price / (1 - (discount / 100))) * 100) / 100;
+                             }
                              
                              return (
                                <>
-                                 {effectiveOriginalPrice && (
+                                 {effectiveOriginalPrice > product.price && (
                                    <div className="price-row-de">
                                       <span className="price-label">De:</span>
                                       <span className="old-price">R$ {effectiveOriginalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>

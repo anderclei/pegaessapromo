@@ -1,17 +1,13 @@
-require('ts-node').register();
-const fs = require('fs');
-const { hydrateAmazonPrice } = require('./src/lib/scrapers/amazon.ts');
+const { hydrateAmazonPrice } = require('./src/lib/scrapers/amazon');
 
-async function test() {
-  const url = fs.readFileSync('frigurl.txt', 'utf8').trim();
-  console.log('Testing hydration on:', url);
-  const p = {
-      price: 0,
-      originalPrice: 0,
-      discount: 0,
-      url: url
-  };
-  await hydrateAmazonPrice(p);
-  console.log('Final product object:', JSON.stringify(p, null, 2));
+async function testHydrate() {
+    const product = {
+        id: 'test',
+        title: 'Apple Watch',
+        url: 'https://www.amazon.com.br/dp/B0FQFPKB9D', // Starlight
+    };
+    console.log('Hydrating:', product.url);
+    const hydrated = await hydrateAmazonPrice(product);
+    console.log('Hydrated:', JSON.stringify(hydrated, null, 2));
 }
-test();
+testHydrate();

@@ -55,10 +55,12 @@ const ProductCardPublic = ({ product, id }: { product: Product; id?: string | nu
   const storeLogo = getStoreLogo(product.platform);
   const href = id && id !== 'null' ? `/p/${id}` : (product.url || '#'); 
   
-  const discount = product.discount && product.discount > 0 ? product.discount : 0;
-  const effectiveOriginalPrice = (product.originalPrice && product.originalPrice > product.price) 
-    ? product.originalPrice 
-    : undefined;
+  const discount = calculateDiscount(product);
+  
+  let effectiveOriginalPrice = product.originalPrice;
+  if (!effectiveOriginalPrice || effectiveOriginalPrice <= product.price) {
+     effectiveOriginalPrice = Math.round((product.price / (1 - (discount / 100))) * 100) / 100;
+  }
 
   return (
     <Link href={href} className="premium-card">
@@ -216,17 +218,8 @@ export default function Home() {
     <div className="home-container">
       <div className="home-content">
         
-        <div className="category-tabs">
-          {categories.map((cat) => (
-            <div 
-              key={cat.id} 
-              className={`category-tab ${selectedCategory === cat.id ? 'active' : ''}`}
-              onClick={() => setSelectedCategory(cat.id)}
-            >
-              {cat.label}
-            </div>
-          ))}
-        </div>
+        {/* Removido botões de categoria por enquanto, focando apenas em Eletrônicos */}
+
         
         {moversAndShakers.length > 0 && (
           <section className="section-standard">
