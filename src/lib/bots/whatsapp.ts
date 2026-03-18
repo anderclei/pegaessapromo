@@ -31,7 +31,7 @@ class WhatsAppBot {
     this.client = new Client({
       authStrategy: new LocalAuth({ dataPath: '.wwebjs_auth' }),
       puppeteer: {
-        headless: true,
+        headless: true, // headless: true is more stable on Windows than "new" for this lib
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -39,8 +39,11 @@ class WhatsAppBot {
           '--disable-accelerated-2d-canvas',
           '--no-first-run',
           '--disable-gpu',
+          '--disable-extensions',
         ],
       },
+      authTimeoutMs: 60000, // Increase to 60s
+      qrMaxRetries: 10,
     });
 
     this.client.on('qr', async (qr: string) => {
@@ -80,10 +83,14 @@ class WhatsAppBot {
     });
 
     try {
+      console.log('⏳ Iniciando motor do WhatsApp (Puppeteer)...');
       await this.client.initialize();
     } catch (error) {
       this._status = 'error';
-      console.error('Erro ao inicializar WhatsApp:', error);
+      console.error('CRITICAL: Erro ao inicializar WhatsApp:', error);
+      if (error instanceof Error) {
+        console.error('Error stack:', error.stack);
+      }
     }
   }
 
