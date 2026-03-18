@@ -151,28 +151,43 @@ export default function AdminDashboard() {
 
 
   useEffect(() => {
-    const saved = localStorage.getItem('affiliateConfig');
-    if (saved) {
-      try { 
-        const parsed = JSON.parse(saved);
-        const isTestData = 
-          parsed.amazonAccessKey?.includes('@') || 
-          parsed.amazonSecretKey === 'password123' ||
-          parsed.amazonId?.includes('dummy') ||
-          parsed.amazonAccessKey?.includes('DUMMY') ||
-          parsed.amazonSecretKey?.includes('dummy');
-        
-        setAffiliateConfig(prev => ({ 
-          ...prev, 
-          ...parsed,
-          amazonId: (isTestData || !parsed.amazonId) ? prev.amazonId : parsed.amazonId,
-          amazonAccessKey: (isTestData || !parsed.amazonAccessKey) ? prev.amazonAccessKey : parsed.amazonAccessKey,
-          amazonSecretKey: (isTestData || !parsed.amazonSecretKey) ? prev.amazonSecretKey : parsed.amazonSecretKey,
-          geminiKey: parsed.geminiKey || '',
-          siteUrl: parsed.siteUrl || 'https://pegaessapromo.com.br'
-        })); 
-      } catch {}
-    }
+    const loadConfig = async () => {
+      try {
+        const res = await fetch('/api/settings');
+        if (res.ok) {
+          const cloudConfig = await res.json();
+          if (cloudConfig && Object.keys(cloudConfig).length > 0) {
+            setAffiliateConfig(prev => ({ ...prev, ...cloudConfig }));
+            return;
+          }
+        }
+      } catch (e) { console.error('Cloud load failed', e); }
+
+      const saved = localStorage.getItem('affiliateConfig');
+      if (saved) {
+        try { 
+          const parsed = JSON.parse(saved);
+          const isTestData = 
+            parsed.amazonAccessKey?.includes('@') || 
+            parsed.amazonSecretKey === 'password123' ||
+            parsed.amazonId?.includes('dummy') ||
+            parsed.amazonAccessKey?.includes('DUMMY') ||
+            parsed.amazonSecretKey?.includes('dummy');
+          
+          setAffiliateConfig(prev => ({ 
+            ...prev, 
+            ...parsed,
+            amazonId: (isTestData || !parsed.amazonId) ? prev.amazonId : parsed.amazonId,
+            amazonAccessKey: (isTestData || !parsed.amazonAccessKey) ? prev.amazonAccessKey : parsed.amazonAccessKey,
+            amazonSecretKey: (isTestData || !parsed.amazonSecretKey) ? prev.amazonSecretKey : parsed.amazonSecretKey,
+            geminiKey: parsed.geminiKey || '',
+            siteUrl: parsed.siteUrl || 'https://pegaessapromo.com.br'
+          })); 
+        } catch {}
+      }
+    };
+
+    loadConfig();
     // Fetch categories
     fetch('/api/categories')
       .then(res => res.json())
@@ -180,8 +195,17 @@ export default function AdminDashboard() {
       .catch(console.error);
   }, [activePlatform]);
 
-  const handleSaveSettings = () => {
+  const handleSaveSettings = async () => {
     localStorage.setItem('affiliateConfig', JSON.stringify(affiliateConfig));
+    try {
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(affiliateConfig)
+      });
+    } catch (e) {
+      console.error('Failed to sync settings to cloud', e);
+    }
     setSaveStatus(true);
     setTimeout(() => setSaveStatus(false), 3000);
   };

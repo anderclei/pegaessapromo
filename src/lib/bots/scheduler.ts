@@ -4,6 +4,7 @@ import { ScheduleConfig, PostLog } from './types';
 import { Product } from '../types';
 import { scrapeMercadoLivre } from '../scrapers/mercadolivre';
 import { scrapeShopee } from '../scrapers/shopee';
+import { getSettings } from '../settings';
 
 class PostScheduler {
   private _config: ScheduleConfig = {
@@ -80,6 +81,18 @@ class PostScheduler {
       if (currentHour < 8 || currentHour >= 19) {
         console.log('⏰ Fora do horário comercial (08:00 - 19:00). Pausando postagens.');
         return logs;
+      }
+
+      // Ensure we have current settings (cloud fallback)
+      if (!this._affiliateConfig.geminiKey || !this._affiliateConfig.amazonId) {
+        try {
+          const cloudSettings = await getSettings();
+          if (cloudSettings) {
+            this._affiliateConfig = { ...this._affiliateConfig, ...cloudSettings };
+          }
+        } catch (e) {
+          console.error('Failed to load cloud settings for scheduler', e);
+        }
       }
 
       // Fetch fresh products including Amazon
