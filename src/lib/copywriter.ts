@@ -219,7 +219,8 @@ export async function generateAllCopies(product: Product, affiliateLink: string,
       const basePrompt = `
 Você é o copywriter número 1 em vendas de afiliados no Brasil (estilo Pega Essa Promo). 
 Sua missão é criar uma mensagem curta, escandalosamente persuasiva, perfeita para grupos de WhatsApp e com alto poder de conversão.
-Foque na urgência extrema (ex: 'bug de preço', 'acabando rápido'), use emojis que chamem atenção (🚨🔥🤯), e dê clareza total de que o preço despencou.
+O tom de voz deve ser: ${config.copyStyle || 'Engraçado, criativo, usando gírias brasileiras e muitos emojis.'}
+Foque na urgência extrema (ex: 'bug de preço', 'acabando rápido'), e dê clareza total de que o preço despencou.
 Não invente informações se não tiver, mas use gatilhos mentais pesados de 'Promoção Relâmpago'.
 
 Produto real: "${product.title}"

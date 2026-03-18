@@ -81,7 +81,8 @@ export default function AdminDashboard() {
     awinId: '',
     rakutenId: '',
     geminiKey: '',
-    siteUrl: 'https://pegaessapromo.com.br'
+    siteUrl: 'https://pegaessapromo.com.br',
+    copyStyle: 'Copys bem humoradas, criativas, com emojis e gatilhos de urgência.'
   });
   const [saveStatus, setSaveStatus] = useState(false);
   
@@ -258,16 +259,17 @@ export default function AdminDashboard() {
             parsed.amazonAccessKey?.includes('DUMMY') ||
             parsed.amazonSecretKey?.includes('dummy');
           
-          setAffiliateConfig(prev => ({ 
-            ...prev, 
-            ...parsed,
-            amazonId: (isTestData || !parsed.amazonId) ? prev.amazonId : parsed.amazonId,
-            amazonAccessKey: (isTestData || !parsed.amazonAccessKey) ? prev.amazonAccessKey : parsed.amazonAccessKey,
-            amazonSecretKey: (isTestData || !parsed.amazonSecretKey) ? prev.amazonSecretKey : parsed.amazonSecretKey,
-            geminiKey: parsed.geminiKey || '',
-            siteUrl: parsed.siteUrl || 'https://pegaessapromo.com.br'
-          })); 
-        } catch {}
+            setAffiliateConfig(prev => ({ 
+              ...prev, 
+              ...parsed,
+              amazonId: (isTestData || !parsed.amazonId) ? prev.amazonId : parsed.amazonId,
+              amazonAccessKey: (isTestData || !parsed.amazonAccessKey) ? prev.amazonAccessKey : parsed.amazonAccessKey,
+              amazonSecretKey: (isTestData || !parsed.amazonSecretKey) ? prev.amazonSecretKey : parsed.amazonSecretKey,
+              geminiKey: parsed.geminiKey || '',
+              siteUrl: parsed.siteUrl || 'https://pegaessapromo.com.br',
+              copyStyle: parsed.copyStyle || 'Copys bem humoradas, criativas, com emojis e gatilhos de urgência.'
+            })); 
+          } catch {}
       }
     };
 
@@ -381,6 +383,18 @@ export default function AdminDashboard() {
                     value={affiliateConfig.geminiKey}
                     onChange={e => setAffiliateConfig({...affiliateConfig, geminiKey: e.target.value})}
                   />
+               </div>
+               <div className="form-field">
+                  <label style={{ color: '#333', fontWeight: 'bold' }}>Estilo das Copys (IA)</label>
+                  <textarea 
+                    placeholder="Ex: Copys engraçadas, usando gírias, focando em economia..."
+                    style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc', minHeight: '80px', paddingTop: '10px' }}
+                    value={affiliateConfig.copyStyle}
+                    onChange={e => setAffiliateConfig({...affiliateConfig, copyStyle: e.target.value})}
+                  />
+                  <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '5px' }}>
+                    Descreva como você quer que o Gemini escreva suas ofertas (humor, urgência, tom de voz, etc).
+                  </p>
                </div>
             </div>
 

@@ -9,6 +9,7 @@ export interface AffiliateConfig {
   amazonSecretKey: string;
   geminiKey?: string;
   siteUrl?: string;
+  copyStyle?: string;
 }
 
 export async function getSettings(): Promise<AffiliateConfig | null> {
