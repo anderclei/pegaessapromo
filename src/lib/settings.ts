@@ -7,6 +7,8 @@ export interface AffiliateConfig {
   amazonId: string;
   amazonAccessKey: string;
   amazonSecretKey: string;
+  geminiKey?: string;
+  siteUrl?: string;
 }
 
 export async function getSettings(): Promise<AffiliateConfig | null> {

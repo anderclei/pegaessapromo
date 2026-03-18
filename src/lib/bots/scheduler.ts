@@ -21,7 +21,7 @@ class PostScheduler {
   private _isRunning = false;
   private _lastRun: string | null = null;
   private _selectedGroups: string[] = [];
-  private _affiliateConfig = { mercadolivreId: '', shopeeId: '' };
+  private _affiliateConfig: any = { mercadolivreId: '', shopeeId: '', geminiKey: '', siteUrl: '' };
 
   get config() { return this._config; }
   get isRunning() { return this._isRunning; }
@@ -35,7 +35,7 @@ class PostScheduler {
     this._selectedGroups = groups;
   }
 
-  setAffiliateConfig(config: { mercadolivreId: string; shopeeId: string }): void {
+  setAffiliateConfig(config: any): void {
     this._affiliateConfig = config;
   }
 
@@ -72,7 +72,17 @@ class PostScheduler {
     const logs: PostLog[] = [];
 
     try {
-      // Fetch fresh products
+      // Check time window (08:00 to 19:00)
+      const now = new Date();
+      const brazilTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+      const currentHour = brazilTime.getHours();
+      
+      if (currentHour < 8 || currentHour >= 19) {
+        console.log('⏰ Fora do horário comercial (08:00 - 19:00). Pausando postagens.');
+        return logs;
+      }
+
+      // Fetch fresh products including Amazon
       const [mlProducts, shopeeProducts] = await Promise.all([
         scrapeMercadoLivre('todos').catch(() => [] as Product[]),
         scrapeShopee('todos').catch(() => [] as Product[]),
@@ -80,8 +90,21 @@ class PostScheduler {
 
       let allProducts = [...mlProducts, ...shopeeProducts];
 
-      // Sort by sales
-      allProducts.sort((a, b) => b.sales - a.sales);
+      // Add Amazon hot products
+      try {
+        const { loadHotProducts } = require('../promotions');
+        const hotData = await loadHotProducts();
+        if (hotData) {
+          const amzEletronicos = hotData['eletronicos'] || [];
+          const amzGerais = hotData['ofertas_gerais'] || [];
+          allProducts = [...allProducts, ...amzEletronicos, ...amzGerais];
+        }
+      } catch (e) {
+        console.error('Erro ao ler hot_products.json:', e);
+      }
+
+      // Sort by discount or sales
+      allProducts.sort((a, b) => (b.discount || 0) - (a.discount || 0) || b.sales - a.sales);
 
       // Filter already posted
       allProducts = allProducts.filter(
@@ -119,7 +142,7 @@ class PostScheduler {
       if (this._config.platforms.instagram) {
         for (const product of productsToPost) {
           try {
-            instagramPoster.generatePost(
+            await instagramPoster.generatePost(
               product,
               this._config.template,
               this._affiliateConfig

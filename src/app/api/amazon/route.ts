@@ -22,12 +22,8 @@ export async function GET(request: Request) {
       const diffMins = diffMs / (1000 * 60);
 
       // Trigger if:
-      // 1. More than 30 mins since last sync OR
-      // 2. We just crossed a :00 or :30 mark (e.g. last was 16:29, now is 16:31)
-      const crossed00 = lastSync.getHours() !== now.getHours();
-      const crossed30 = (lastSync.getMinutes() < 30 && now.getMinutes() >= 30) || crossed00;
-      
-      if (diffMins >= 30 || crossed30) {
+      // 1. More than 5 mins since last sync
+      if (diffMins >= 5) {
         console.log(`[AutoSync] Triggering scheduled sync (Last: ${lastSync.toISOString()}, Now: ${now.toISOString()})...`);
         fetch(`${new URL(request.url).origin}/api/amazon/sync`, { 
           method: 'POST', 

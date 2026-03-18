@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     };
 
     const affiliateLink = buildAffiliateLink(product, affiliateConfig);
-    const copies = generateAllCopies(product, affiliateLink);
+    const copies = await generateAllCopies(product, affiliateLink, affiliateConfig);
 
     return NextResponse.json({ copies, affiliateLink });
   } catch (error) {

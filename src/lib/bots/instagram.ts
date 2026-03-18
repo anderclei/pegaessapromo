@@ -7,15 +7,15 @@ class InstagramPoster {
 
   get posts() { return this._posts; }
 
-  generatePost(
+  async generatePost(
     product: Product,
     template: 'aida' | 'pas' | 'bab',
-    affiliateConfig: { mercadolivreId: string; shopeeId: string }
-  ): InstagramPostData {
+    affiliateConfig: any
+  ): Promise<InstagramPostData> {
     const affiliateLink = buildAffiliateLink(product, affiliateConfig);
-    const copies = generateAllCopies(product, affiliateLink);
+    const copies = await generateAllCopies(product, affiliateLink, affiliateConfig);
     const templateCopies = copies[template];
-    const instaCopy = templateCopies.find(c => c.platform === 'instagram');
+    const instaCopy = templateCopies.find((c: any) => c.platform === 'instagram');
 
     if (!instaCopy) {
       throw new Error('Template de Instagram não encontrado');
@@ -41,14 +41,16 @@ class InstagramPoster {
     return post;
   }
 
-  generateMultiplePosts(
+  async generateMultiplePosts(
     products: Product[],
     template: 'aida' | 'pas' | 'bab',
-    affiliateConfig: { mercadolivreId: string; shopeeId: string }
-  ): InstagramPostData[] {
-    return products.map(product =>
-      this.generatePost(product, template, affiliateConfig)
-    );
+    affiliateConfig: any
+  ): Promise<InstagramPostData[]> {
+    const results = [];
+    for (const product of products) {
+        results.push(await this.generatePost(product, template, affiliateConfig));
+    }
+    return results;
   }
 
   deletePost(postId: string): boolean {

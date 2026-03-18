@@ -53,17 +53,10 @@ const ProductCardAdmin = ({ product, onSelect }: { product: Product; onSelect: (
 };
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'settings' | 'bots' | 'categories'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'settings' | 'bots' | 'categories'>('settings');
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [fetchType, setFetchType] = useState<'bestsellers' | 'lightning' | 'super'>('bestsellers');
   const [activePlatform, setActivePlatform] = useState<Platform>('amazon');
-  const [syncing, setSyncing] = useState(false);
-  const [syncProgress, setSyncProgress] = useState(0);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [activeTemplate, setActiveTemplate] = useState('aida');
-  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
-  const [manualLink, setManualLink] = useState('');
   
   // Settings State
   const [affiliateConfig, setAffiliateConfig] = useState({ 
@@ -153,26 +146,9 @@ export default function AdminDashboard() {
     } catch (err) { console.error(err); }
   };
 
-  const fetchProducts = useCallback(async (type?: string, platform?: Platform) => {
-    setLoading(true);
-    const targetType = type || fetchType;
-    const targetPlatform = platform || activePlatform;
-    try {
-      const endpoint = targetPlatform === 'amazon' ? '/api/amazon' : 
-                       targetPlatform === 'shopee' ? '/api/shopee' : 
-                       '/api/mercadolivre';
-      
-      const res = await fetch(`${endpoint}?category=instrumentos_musicais&type=${targetType}`);
-      const data = await res.json();
-      if (data.products) {
-        setProducts(data.products.sort((a: any, b: any) => b.sales - a.sales));
-      }
-    } catch (err) { console.error(err); }
-    setLoading(false);
-  }, [fetchType, activePlatform]);
+
 
   useEffect(() => {
-    fetchProducts();
     const saved = localStorage.getItem('affiliateConfig');
     if (saved) {
       try { 
@@ -198,7 +174,7 @@ export default function AdminDashboard() {
       .then(res => res.json())
       .then(data => setDbCategories(data))
       .catch(console.error);
-  }, [fetchType, activePlatform, fetchProducts]);
+  }, [activePlatform]);
 
   const handleSaveSettings = () => {
     localStorage.setItem('affiliateConfig', JSON.stringify(affiliateConfig));
@@ -206,73 +182,13 @@ export default function AdminDashboard() {
     setTimeout(() => setSaveStatus(false), 3000);
   };
 
-  const handleSync = async () => {
-    setSyncing(true);
-    setSyncProgress(10);
-    try {
-      const endpoint = activePlatform === 'amazon' ? '/api/amazon/sync' : 
-                       activePlatform === 'shopee' ? '/api/shopee/sync' : 
-                       '/api/mercadolivre/sync';
-      
-      // Simulate gradual progress while fetching
-      const progressInterval = setInterval(() => {
-        setSyncProgress(prev => {
-          if (prev >= 90) return prev;
-          return prev + 5;
-        });
-      }, 1000);
 
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ config: affiliateConfig })
-      });
-      
-      clearInterval(progressInterval);
-      setSyncProgress(100);
-
-      if (res.ok) { 
-        fetchProducts(); 
-        setTimeout(() => {
-          alert('Sincronização Amazon OK!');
-          setSyncProgress(0);
-        }, 500);
-      }
-      else { 
-        alert('Esta plataforma requer configuração API válida para sincronização.'); 
-        setSyncProgress(0);
-      }
-    } catch (err) { 
-      alert('Erro na sincronização'); 
-      setSyncProgress(0);
-    }
-    setSyncing(false);
-  };
-
-  const handleCopy = async (text: string, index: number) => {
-    await navigator.clipboard.writeText(text);
-    setCopiedIndex(index);
-    setTimeout(() => setCopiedIndex(null), 2000);
-  };
-
-  const getCopies = () => {
-    if (!selectedProduct) return [];
-    const link = manualLink || buildAffiliateLink(selectedProduct, affiliateConfig);
-    const all = generateAllCopies(selectedProduct, link);
-    return all[activeTemplate as keyof typeof all] || [];
-  };
 
   return (
     <div className="admin-container">
       <div className="catalogue-container">
         {/* Admin Tabs */}
         <div className="admin-tabs">
-          <button 
-            onClick={() => setActiveTab('dashboard')}
-            className={`admin-tab ${activeTab === 'dashboard' ? 'active' : ''}`}
-          >
-            📊 Dashboard
-          </button>
           <button 
             onClick={() => setActiveTab('settings')}
             className={`admin-tab ${activeTab === 'settings' ? 'active' : ''}`}
@@ -293,78 +209,7 @@ export default function AdminDashboard() {
           </button>
         </div>
 
-        {activeTab === 'dashboard' && (
-          <section>
-            <div className="admin-header-row">
-              <div className="admin-title-section">
-                <h2>Gestão de Ofertas Amazon</h2>
-                <p>Sincronize e gere conteúdos exclusivos para a Amazon</p>
-                <div className="type-filter-group">
-                  <button 
-                    onClick={() => setFetchType('bestsellers')}
-                    className={`type-filter-btn ${fetchType === 'bestsellers' ? 'active-bestseller' : ''}`}
-                  >
-                    🔥 Mais Vendidos
-                  </button>
-                  <button 
-                    onClick={() => setFetchType('lightning')}
-                    className={`type-filter-btn ${fetchType === 'lightning' ? 'active-lightning' : ''}`}
-                  >
-                    ⚡ Ofertas Relâmpago
-                  </button>
-                  <button 
-                    onClick={() => setFetchType('super')}
-                    className={`type-filter-btn ${fetchType === 'super' ? 'active-super' : ''}`}
-                  >
-                    💸 Super Descontos
-                  </button>
-                </div>
-              </div>
-              <div className="admin-actions-row">
-                <div className="platform-selector-card">
-                   <button
-                      onClick={() => setActivePlatform('amazon')}
-                      className={`platform-btn ${activePlatform === 'amazon' ? 'active' : ''}`}
-                    >
-                      Amazon
-                    </button>
-                    {/* Phase 2 indicators */}
-                    <button className="platform-btn" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>Shopee (Phase 2)</button>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%', maxWidth: '300px' }}>
-                  <button 
-                    className={`btn btn-primary sync-btn ${syncing ? 'loading' : ''}`}
-                    style={{ width: '100%' }}
-                    onClick={handleSync}
-                    disabled={syncing}
-                  >
-                    {syncing ? '🔄 Sincronizando...' : `✨ Sincronizar Amazon`}
-                  </button>
-                  
-                  {syncing && (
-                    <div style={{ width: '100%', backgroundColor: '#eee', borderRadius: '4px', height: '10px', overflow: 'hidden' }}>
-                      <div style={{ 
-                        width: `${syncProgress}%`, 
-                        height: '100%', 
-                        backgroundColor: '#fbbf24', 
-                        transition: 'width 0.3s ease' 
-                      }}></div>
-                    </div>
-                  )}
-                  {syncing && <span style={{ fontSize: '12px', color: '#666', textAlign: 'center' }}>{syncProgress}% concluído</span>}
-                </div>
-              </div>
-            </div>
 
-            {loading ? (
-              <div className="admin-loading">Carregando ofertas Amazon...</div>
-            ) : (
-              <div className="products-grid admin-grid">
-                {products.filter(p => p.platform === 'amazon').map(p => <ProductCardAdmin key={p.id} product={p} onSelect={setSelectedProduct} />)}
-              </div>
-            )}
-          </section>
-        )}
 
         {activeTab === 'settings' && (
           <section className="settings-section">
@@ -530,89 +375,7 @@ export default function AdminDashboard() {
         )}
       </div>
 
-      {/* Copy Generator Modal */}
-      {selectedProduct && (
-        <div className="modal-overlay" onClick={() => setSelectedProduct(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2 className="modal-title">✍️ Gerador de Copys Amazon</h2>
-              <button className="modal-close" onClick={() => setSelectedProduct(null)}>✕</button>
-            </div>
-            <div className="modal-body">
-              {/* Product info */}
-              <div className="modal-product-info">
-                <div className="modal-product-image">
-                  <img src={selectedProduct.image} alt={selectedProduct.title} />
-                </div>
-                <div className="modal-product-details">
-                  <h3>{selectedProduct.title}</h3>
-                  <p className="price">{formatPrice(selectedProduct.price)}</p>
-                  <p className="platform-label">Amazon Brasil</p>
-                </div>
-              </div>
 
-              {/* Template tabs */}
-              <div className="template-tabs">
-                {COPY_TEMPLATES.map(t => (
-                  <button
-                    key={t.id}
-                    className={`template-tab ${activeTemplate === t.id ? 'active' : ''}`}
-                    onClick={() => setActiveTemplate(t.id)}
-                  >
-                    {t.icon} {t.name}
-                  </button>
-                ))}
-              </div>
-
-              {/* Copies */}
-              <div className="copies-grid">
-                <div className="copy-card highlight">
-                  <div className="copy-card-header">
-                    <span className="copy-card-title">🚀 Link da Bridge Page Premium</span>
-                    <button
-                      className="btn btn-primary btn-sm"
-                      onClick={async () => {
-                        const link = manualLink || buildAffiliateLink(selectedProduct, affiliateConfig);
-                        const productToSave = { ...selectedProduct, type: selectedProduct.type || fetchType };
-                        const res = await fetch('/api/promotions', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ product: productToSave, affiliateLink: link }),
-                        });
-                        const data = await res.json();
-                        if (data.id) handleCopy(`${window.location.origin}/p/${data.id}`, 999);
-                      }}
-                    >
-                      {copiedIndex === 999 ? '✅ Link Copiado!' : '✨ Gerar'}
-                    </button>
-                  </div>
-                  <div className="copy-card-body">
-                    <input 
-                      type="text" className="form-field-input" placeholder="Link manual (opcional)" 
-                      value={manualLink} onChange={e => setManualLink(e.target.value)}
-                    />
-                    <p className="hint">Cria uma landing page profissional para conversão máxima.</p>
-                  </div>
-                </div>
-
-                {getCopies().map((copy, idx) => (
-                  <div key={idx} className="copy-card">
-                    <div className="copy-card-header">
-                      <span className="copy-card-title">{copy.title}</span>
-                      <button className="copy-btn" onClick={() => handleCopy(copy.body + '\n\n' + (copy.hashtags || ''), idx)}>
-                        {copiedIndex === idx ? '✅ Copiado!' : '📋 Copiar'}
-                      </button>
-                    </div>
-                    <div className="copy-card-body">
-                      <div className="copy-text">{copy.body}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -10,6 +10,8 @@ export default function Configuracoes() {
   const [amazonId, setAmazonId] = useState('andercleipino-20');
   const [amazonAccessKey, setAmazonAccessKey] = useState('amzn1.application-oa2-client.27e8dc0d2d1d48b29a171860cf840a12');
   const [amazonSecretKey, setAmazonSecretKey] = useState('amzn1.oa2-cs.v1.b69c917a94b07978ac42e9a484a4728ce6c7461afe375491a4701179795bb397a');
+  const [geminiKey, setGeminiKey] = useState('');
+  const [siteUrl, setSiteUrl] = useState('');
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -28,6 +30,8 @@ export default function Configuracoes() {
           amazonId: config?.amazonId || localParsed?.amazonId || 'andercleipino-20',
           amazonAccessKey: config?.amazonAccessKey || localParsed?.amazonAccessKey || 'amzn1.application-oa2-client.27e8dc0d2d1d48b29a171860cf840a12',
           amazonSecretKey: config?.amazonSecretKey || localParsed?.amazonSecretKey || 'amzn1.oa2-cs.v1.b69c917a94b07978ac42e9a484a4728ce6c7461afe375491a4701179795bb397a',
+          geminiKey: config?.geminiKey || localParsed?.geminiKey || '',
+          siteUrl: config?.siteUrl || localParsed?.siteUrl || 'https://pegaessapromo.com.br',
         };
 
         const isDummy = (val: string) => !val || val.toLowerCase().includes('dummy') || val === 'password123';
@@ -38,6 +42,8 @@ export default function Configuracoes() {
         setAmazonId(isDummy(final.amazonId) ? 'andercleipino-20' : final.amazonId);
         setAmazonAccessKey(isDummy(final.amazonAccessKey) ? 'amzn1.application-oa2-client.27e8dc0d2d1d48b29a171860cf840a12' : final.amazonAccessKey);
         setAmazonSecretKey(isDummy(final.amazonSecretKey) ? 'amzn1.oa2-cs.v1.b69c917a94b07978ac42e9a484a4728ce6c7461afe375491a4701179795bb397a' : final.amazonSecretKey);
+        setGeminiKey(final.geminiKey);
+        setSiteUrl(final.siteUrl);
       } catch (error) {
         console.error('Failed to load settings:', error);
       } finally {
@@ -55,6 +61,8 @@ export default function Configuracoes() {
       amazonId: amazonId.trim(),
       amazonAccessKey: amazonAccessKey.trim(),
       amazonSecretKey: amazonSecretKey.trim(),
+      geminiKey: geminiKey.trim(),
+      siteUrl: siteUrl.trim(),
     };
     
     try {
@@ -116,6 +124,35 @@ export default function Configuracoes() {
               placeholder="Ex: sua-chave-secreta"
               value={amazonSecretKey}
               onChange={(e) => setAmazonSecretKey(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Global Settings (Gemini & Site) */}
+        <div className="settings-card border-glow" style={{ marginTop: '2rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
+            <span style={{ fontSize: '1.5rem' }}>🤖</span>
+            <h2 style={{ margin: 0 }}>Gerais e Inteligência Artificial</h2>
+          </div>
+          <p>Configure a URL do seu site e a chave da IA (Gemini) para copys automáticas.</p>
+          <div className="form-group">
+            <label className="form-label">URL Base do seu Portal</label>
+            <input
+              type="text"
+              className="form-input"
+              placeholder="Ex: https://pegaessapromo.com.br"
+              value={siteUrl}
+              onChange={(e) => setSiteUrl(e.target.value)}
+            />
+          </div>
+          <div className="form-group" style={{ marginTop: '1rem' }}>
+            <label className="form-label">Google Gemini API Key</label>
+            <input
+              type="password"
+              className="form-input"
+              placeholder="Sua chave da API AI Studio"
+              value={geminiKey}
+              onChange={(e) => setGeminiKey(e.target.value)}
             />
           </div>
         </div>

@@ -130,7 +130,7 @@ class WhatsAppBot {
     groupId: string,
     product: Product,
     template: 'aida' | 'pas' | 'bab',
-    affiliateConfig: { mercadolivreId: string; shopeeId: string }
+    affiliateConfig: any
   ): Promise<PostLog> {
     const log: PostLog = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
@@ -149,10 +149,12 @@ class WhatsAppBot {
     }
 
     try {
-      const affiliateLink = buildAffiliateLink(product, affiliateConfig);
-      const copies = generateAllCopies(product, affiliateLink);
+      // Use internal site link for WhatsApp instead of direct affiliate link, if siteUrl is configured
+      const siteLink = affiliateConfig.siteUrl ? `${affiliateConfig.siteUrl}/p/${product.id}` : buildAffiliateLink(product, affiliateConfig);
+      
+      const copies = await generateAllCopies(product, siteLink, affiliateConfig);
       const templateCopies = copies[template];
-      const whatsappCopy = templateCopies.find(c => c.platform === 'whatsapp');
+      const whatsappCopy = templateCopies.find((c: any) => c.platform === 'whatsapp');
 
       if (!whatsappCopy) {
         throw new Error('Template de WhatsApp não encontrado');
@@ -195,7 +197,7 @@ class WhatsAppBot {
     groupIds: string[],
     product: Product,
     template: 'aida' | 'pas' | 'bab',
-    affiliateConfig: { mercadolivreId: string; shopeeId: string }
+    affiliateConfig: any
   ): Promise<PostLog[]> {
     const logs: PostLog[] = [];
 

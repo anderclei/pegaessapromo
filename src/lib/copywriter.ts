@@ -1,4 +1,5 @@
 import { Product, CopyResult } from './types';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 function formatPrice(price: number): string {
   return price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -198,12 +199,58 @@ function generateBAB(product: Product, affiliateLink: string): CopyResult[] {
   ];
 }
 
-export function generateAllCopies(product: Product, affiliateLink: string) {
-  return {
+export async function generateAllCopies(product: Product, affiliateLink: string, config?: any) {
+  const result: any = {
     aida: generateAIDA(product, affiliateLink),
     pas: generatePAS(product, affiliateLink),
     bab: generateBAB(product, affiliateLink),
   };
+
+  // If Gemini AI is configured, generate dynamic super-persuasive copies to replace the static ones
+  if (config && config.geminiKey) {
+    try {
+      const genAI = new GoogleGenerativeAI(config.geminiKey);
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+      const discount = calcDiscount(product);
+      const priceText = formatPrice(product.price);
+      const oldPriceText = product.originalPrice && product.originalPrice > product.price ? formatPrice(product.originalPrice) : '';
+
+      const basePrompt = `
+Você é o copywriter número 1 em vendas de afiliados no Brasil (estilo Pega Essa Promo). 
+Sua missão é criar uma mensagem curta, escandalosamente persuasiva, perfeita para grupos de WhatsApp e com alto poder de conversão.
+Foque na urgência extrema (ex: 'bug de preço', 'acabando rápido'), use emojis que chamem atenção (🚨🔥🤯), e dê clareza total de que o preço despencou.
+Não invente informações se não tiver, mas use gatilhos mentais pesados de 'Promoção Relâmpago'.
+
+Produto real: "${product.title}"
+Preço atual com desconto: ${priceText}
+${oldPriceText ? `Preço antigo (antes): ${oldPriceText}` : ''}
+${discount ? `Desconto: ${discount}` : ''}
+
+IMPORTANTE: 
+1) No final da copy (em uma linha separada), coloque este link EXATO: ${affiliateLink}
+2) Não inclua saudação padrão como "Olá pessoal". Vá direto para o assunto bombástico.
+3) Seja breve (máximo de 120 palavras).
+`;
+
+      const geminiResponse = await model.generateContent(basePrompt);
+      const geminiText = geminiResponse.response.text();
+
+      if (geminiText && geminiText.length > 10) {
+        // Overwrite the WhatsApp copy for all templates just to be sure we use the AI copy whenever a template is chosen
+        for (const template of ['aida', 'pas', 'bab']) {
+           const waIndex = result[template].findIndex((c: any) => c.platform === 'whatsapp');
+           if (waIndex !== -1) {
+             result[template][waIndex].body = geminiText;
+           }
+        }
+      }
+    } catch (e) {
+      console.error('Falha ao gerar copy pelo Gemini, usando padrão fallback:', e);
+    }
+  }
+
+  return result;
 }
 
 export function buildAffiliateLink(product: Product, config: any): string {

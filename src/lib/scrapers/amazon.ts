@@ -104,6 +104,16 @@ export async function scrapeAmazon(category: string = 'todos', type: string = 'b
         if (title && (priceText || relativeLink)) {
           const cleanPrice = (text: string) => {
             if (!text) return 0;
+            
+            // Check if it's a range (e.g., "R$ 100 - R$ 200")
+            if (text.includes('-') || text.toLowerCase().includes(' a ')) {
+               // It's a range. We'll return the lower bound but mark it
+               const match = text.match(/R\$\s*([\d.,]+)/);
+               if (match) {
+                 return parseFloat(match[1].replace(/\./g, '').replace(',', '.')) || 0;
+               }
+            }
+
             const match = text.match(/R\$\s*([\d.,]+)/);
             if (match) {
               return parseFloat(match[1].replace(/\./g, '').replace(',', '.')) || 0;
@@ -330,22 +340,28 @@ export async function hydrateAmazonPrice(product: Product): Promise<Product> {
     
     let basePriceText = '';
     const priceSelectors = [
-      '.priceToPay .a-price-whole',
       '#corePriceDisplay_desktop_feature_div .a-price-whole',
-      '#priceblock_ourprice',
-      '#priceblock_dealprice',
+      '#corePriceDisplay_desktop_feature_div .a-price .a-offscreen',
+      '.priceToPay .a-price-whole',
+      '.priceToPay .a-price .a-offscreen',
       '.a-price.a-text-price.a-size-medium .a-offscreen',
       '.a-price .a-offscreen',
+      '#priceblock_ourprice',
+      '#priceblock_dealprice',
       '.a-color-price'
     ];
 
     for (const selector of priceSelectors) {
-      let pt = $(selector).first().text().trim();
+      const element = $(selector).first();
+      let pt = element.text().trim();
+      
       if (pt) {
-        if (selector.includes('a-price-whole')) {
-          const fraction = $(selector).first().next('.a-price-fraction').text().trim() || '00';
+        if (selector.includes('.a-price-whole')) {
+          // If we got the whole part, try to find the fraction part near it
+          const fraction = element.parent().find('.a-price-fraction').text().trim() || '00';
           pt = pt.replace(/\./g, '') + ',' + fraction;
         }
+        
         const match = pt.match(/[\d.,]+/);
         if (match) {
            basePriceText = match[0];
@@ -366,15 +382,14 @@ export async function hydrateAmazonPrice(product: Product): Promise<Product> {
     };
 
     let pixPrice = 0;
-    const bodyText = $('body').text().replace(/\s+/g, ' '); 
+    // Look for Pix price specifically in the price display areas first to avoid false positives
+    const priceContext = $('#corePriceDisplay_desktop_feature_div, #corePrice_desktop, #priceBlock, #price_feature_div, .priceToPay').text().replace(/\s+/g, ' '); 
     
-    // Pattern 1: Price followed by "no Pix" or "à vista no Pix"
-    // Pattern 2: "no Pix" or "à vista no Pix" followed by Price (Amazon varies this)
     const pixRegex1 = /R\$\s*([\d.,]+)\s*(?:à\s+vista\s+)?no\s+Pix/i;
     const pixRegex2 = /(?:à\s+vista\s+)?no\s+Pix[^R]*R\$\s*([\d.,]+)/i;
     
-    const m1 = bodyText.match(pixRegex1);
-    const m2 = bodyText.match(pixRegex2);
+    const m1 = priceContext.match(pixRegex1) || $('body').text().replace(/\s+/g, ' ').match(pixRegex1);
+    const m2 = priceContext.match(pixRegex2) || $('body').text().replace(/\s+/g, ' ').match(pixRegex2);
     
     if (m1 || m2) {
        const pixStr = m1 ? m1[1] : m2![1];
@@ -398,11 +413,27 @@ export async function hydrateAmazonPrice(product: Product): Promise<Product> {
                 $('.basisPrice .a-offscreen').first().text().trim() ||
                 $('#listPrice').text().trim() ||
                 $('.a-text-strike').first().text().trim() ||
-                $('[data-a-strike="true"]').first().text().trim();
+                $('.a-size-small.a-color-secondary.a-text-strike').first().text().trim() ||
+                $('[data-a-strike="true"]').first().text().trim() ||
+                $('#priceblock_listprice').text().trim() ||
+                // Text-based fallback
+                $('span:contains("Preço anterior")').next().text().trim() ||
+                $('span:contains("Preço de tabela")').next().text().trim();
     
     let originalPriceValue = 0;
     if (pText) {
        originalPriceValue = cleanPriceStr(pText);
+    }
+    
+    const bodyText = $('body').text().replace(/\s+/g, ' ');
+
+    // Fallback: If original price still not found, search in the body text for "ou R$ ... em até" or similar
+    if (originalPriceValue === 0) {
+      const instMatch = bodyText.match(/ou\s*R\$\s*([\d.,]+)\s*em/i) || 
+                       bodyText.match(/por\s*R\$\s*([\d.,]+)\s*em/i);
+      if (instMatch) {
+        originalPriceValue = cleanPriceStr(instMatch[1]);
+      }
     }
 
     // New: Attempt to find the discount percentage directly if available (e.g., "-24%")
@@ -414,6 +445,10 @@ export async function hydrateAmazonPrice(product: Product): Promise<Product> {
     if (discountElementText && discountElementText.includes('%')) {
        const dMatch = discountElementText.match(/(\d+)%/);
        if (dMatch) directDiscount = parseInt(dMatch[1]);
+    } else {
+      // Fallback: search for "(XX% off)" or similar in the whole body
+      const offMatch = bodyText.match(/\(?(\d+)%\s*off\)?/i);
+      if (offMatch) directDiscount = parseInt(offMatch[1]);
     }
 
     if (finalPrice === 0 && originalPriceValue === 0) {
@@ -426,7 +461,7 @@ export async function hydrateAmazonPrice(product: Product): Promise<Product> {
     }
     
     // Priority 1: Use detected original price from this hydration
-    if (originalPriceValue && originalPriceValue > product.price) {
+    if (originalPriceValue && originalPriceValue > product.price + 1) {
       product.originalPrice = originalPriceValue;
       product.discount = Math.round(((originalPriceValue - product.price) / originalPriceValue) * 100);
     } 
