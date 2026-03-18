@@ -116,15 +116,29 @@ class PostScheduler {
         console.error('Erro ao ler hot_products.json:', e);
       }
 
-      // Sort by discount or sales
-      allProducts.sort((a, b) => (b.discount || 0) - (a.discount || 0) || b.sales - a.sales);
+      // Filter for "imperdíveis": High discount (15%+) or special deal types
+      allProducts = allProducts.filter(p => {
+        const hasHighDiscount = (p.discount || 0) >= 15;
+        const isSpecialType = p.type === 'lightning' || p.type === 'super';
+        return hasHighDiscount || isSpecialType;
+      });
+
+      // Sort by urgency: Lightning Deals first, then by discount amount
+      allProducts.sort((a, b) => {
+        const typePriority = (type?: string) => type === 'lightning' ? 2 : (type === 'super' ? 1 : 0);
+        const priorityA = typePriority(a.type);
+        const priorityB = typePriority(b.type);
+        
+        if (priorityA !== priorityB) return priorityB - priorityA;
+        return (b.discount || 0) - (a.discount || 0);
+      });
 
       // Filter already posted
       allProducts = allProducts.filter(
         p => !whatsappBot.isProductAlreadyPosted(p.id)
       );
 
-      // Take top N
+      // Take top N (quality over quantity)
       const productsToPost = allProducts.slice(0, this._config.maxPostsPerRun);
 
       if (productsToPost.length === 0) {
