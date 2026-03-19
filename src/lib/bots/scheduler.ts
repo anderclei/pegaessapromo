@@ -160,14 +160,42 @@ class PostScheduler {
         return logs;
       }
 
-      // Post to WhatsApp
+      // For each product: PUBLISH on site first, then send WhatsApp message
       if (this._config.platforms.whatsapp && this._selectedGroups.length > 0) {
+        // Ensure geminiKey is available in affiliateConfig
+        let config = { ...this._affiliateConfig };
+        if (!config.geminiKey) {
+          try {
+            const cloudSettings = await getSettings();
+            if (cloudSettings) config = { ...config, ...cloudSettings };
+          } catch (e) {}
+        }
+
         for (const product of productsToPost) {
+          // STEP 1: Publish to site (Supabase) BEFORE sending WhatsApp
+          // This ensures the link /p/[id] is live when the user clicks it
+          try {
+            const currentHot = hotData || {};
+            const existingGerais: Product[] = currentHot['ofertas_gerais'] || [];
+            const existingIds = new Set(existingGerais.map((p: Product) => p.id));
+
+            if (!existingIds.has(product.id)) {
+              const updatedGerais = [product, ...existingGerais].slice(0, 100);
+              hotData = { ...currentHot, ofertas_gerais: updatedGerais, lastSync: new Date().toISOString() };
+              await saveHotProducts(hotData);
+              console.log(`📤 [1/2] Produto publicado no site: ${product.title.substring(0, 50)}...`);
+            }
+          } catch (e) {
+            console.error('Erro ao publicar produto no site antes do envio:', e);
+          }
+
+          // STEP 2: Send to WhatsApp with the now-live link
+          console.log(`📱 [2/2] Enviando para o grupo: ${product.title.substring(0, 50)}...`);
           const productLogs = await whatsappBot.sendToMultipleGroups(
             this._selectedGroups,
             product,
             this._config.template,
-            this._affiliateConfig
+            config
           );
           logs.push(...productLogs);
 
@@ -176,27 +204,7 @@ class PostScheduler {
           await new Promise(resolve => setTimeout(resolve, delay));
         }
 
-        // Sync posted products to hot_products in Supabase so Vercel site updates automatically
-        try {
-          const currentHot = hotData || {};
-          const nowIso = new Date().toISOString();
-          // Add posted products to 'ofertas_gerais' category so they appear on the site
-          const existingGerais: Product[] = currentHot['ofertas_gerais'] || [];
-          const existingIds = new Set(existingGerais.map((p: Product) => p.id));
-          const newProducts = productsToPost.filter(p => !existingIds.has(p.id));
-          if (newProducts.length > 0) {
-            // Keep the most recent 100 products in ofertas_gerais
-            const updatedGerais = [...newProducts, ...existingGerais].slice(0, 100);
-            await saveHotProducts({
-              ...currentHot,
-              ofertas_gerais: updatedGerais,
-              lastSync: nowIso,
-            });
-            console.log(`✅ ${newProducts.length} produtos sincronizados com o site (Supabase)`);
-          }
-        } catch (e) {
-          console.error('Erro ao sincronizar produtos com o site:', e);
-        }
+        console.log(`✅ Ciclo concluído: ${productsToPost.length} ofertas publicadas e enviadas.`);
       }
 
       // Generate Instagram posts
