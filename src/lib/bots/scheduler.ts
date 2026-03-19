@@ -5,6 +5,7 @@ import { Product } from '../types';
 import { scrapeMercadoLivre } from '../scrapers/mercadolivre';
 import { scrapeShopee } from '../scrapers/shopee';
 import { getSettings } from '../settings';
+import { loadHotProducts, saveHotProducts } from '../promotions';
 
 class PostScheduler {
   private _config: ScheduleConfig = {
@@ -114,17 +115,17 @@ class PostScheduler {
 
       let allProducts = [...mlProducts, ...shopeeProducts];
 
-      // Add Amazon hot products
+      // Add Amazon hot products (from Supabase cache or local file)
+      let hotData: any = null;
       try {
-        const { loadHotProducts } = require('../promotions');
-        const hotData = await loadHotProducts();
+        hotData = await loadHotProducts();
         if (hotData) {
           const amzEletronicos = hotData['eletronicos'] || [];
           const amzGerais = hotData['ofertas_gerais'] || [];
           allProducts = [...allProducts, ...amzEletronicos, ...amzGerais];
         }
       } catch (e) {
-        console.error('Erro ao ler hot_products.json:', e);
+        console.error('Erro ao ler hot_products:', e);
       }
 
       // Filter for "imperdíveis": High discount (15%+) or special deal types
@@ -173,6 +174,28 @@ class PostScheduler {
           // Delay between products (5-10 seconds)
           const delay = 5000 + Math.random() * 5000;
           await new Promise(resolve => setTimeout(resolve, delay));
+        }
+
+        // Sync posted products to hot_products in Supabase so Vercel site updates automatically
+        try {
+          const currentHot = hotData || {};
+          const nowIso = new Date().toISOString();
+          // Add posted products to 'ofertas_gerais' category so they appear on the site
+          const existingGerais: Product[] = currentHot['ofertas_gerais'] || [];
+          const existingIds = new Set(existingGerais.map((p: Product) => p.id));
+          const newProducts = productsToPost.filter(p => !existingIds.has(p.id));
+          if (newProducts.length > 0) {
+            // Keep the most recent 100 products in ofertas_gerais
+            const updatedGerais = [...newProducts, ...existingGerais].slice(0, 100);
+            await saveHotProducts({
+              ...currentHot,
+              ofertas_gerais: updatedGerais,
+              lastSync: nowIso,
+            });
+            console.log(`✅ ${newProducts.length} produtos sincronizados com o site (Supabase)`);
+          }
+        } catch (e) {
+          console.error('Erro ao sincronizar produtos com o site:', e);
         }
       }
 
