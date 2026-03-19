@@ -133,11 +133,6 @@ export async function scrapeAmazon(category: string = 'todos', type: string = 'b
           if (originalPrice && originalPrice <= price) {
             originalPrice = undefined;
           }
-
-          // If we have price and discount but no originalPrice, reconstruct it
-          if (!originalPrice && discount > 0 && price > 0) {
-            originalPrice = Math.round((price / (1 - (discount / 100))) * 100) / 100;
-          }
           
           // If we have originalPrice but no discount, calculate it
           if (!discount && originalPrice && originalPrice > price) {
@@ -465,10 +460,10 @@ export async function hydrateAmazonPrice(product: Product): Promise<Product> {
       product.originalPrice = originalPriceValue;
       product.discount = Math.round(((originalPriceValue - product.price) / originalPriceValue) * 100);
     } 
-    // Priority 2: Use direct discount badge from this hydration
+    // Priority 2: Use direct discount badge from this hydration (but don't invent DE price)
     else if (directDiscount > 0 && product.price > 0) {
       product.discount = directDiscount;
-      product.originalPrice = Math.round((product.price / (1 - (directDiscount / 100))) * 100) / 100;
+      // Do not reconstruct originalPrice here as it can be inaccurate
     }
     // Fallback: Preserve existing values if they are valid, else clear
     else if (!product.originalPrice || product.originalPrice <= product.price) {

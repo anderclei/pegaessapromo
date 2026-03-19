@@ -16,6 +16,8 @@ class PostScheduler {
       instagram: true,
     },
     maxPostsPerRun: 3,
+    startTime: '08:00',
+    endTime: '19:00',
   };
 
   private _intervalId: ReturnType<typeof setInterval> | null = null;
@@ -69,18 +71,27 @@ class PostScheduler {
     console.log('⏹️ Agendamento parado');
   }
 
-  async runPostingCycle(): Promise<PostLog[]> {
+  async runPostingCycle(force: boolean = false): Promise<PostLog[]> {
     const logs: PostLog[] = [];
 
     try {
-      // Check time window (08:00 to 19:00)
-      const now = new Date();
-      const brazilTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-      const currentHour = brazilTime.getHours();
-      
-      if (currentHour < 8 || currentHour >= 19) {
-        console.log('⏰ Fora do horário comercial (08:00 - 19:00). Pausando postagens.');
-        return logs;
+      if (!force) {
+        // Check time window
+        const now = new Date();
+        const brazilTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+        const currentHour = brazilTime.getHours();
+        const currentMinutes = brazilTime.getMinutes();
+        const currentTimeInMinutes = currentHour * 60 + currentMinutes;
+
+        const [startH, startM] = (this._config.startTime || '08:00').split(':').map(Number);
+        const [endH, endM] = (this._config.endTime || '19:00').split(':').map(Number);
+        const startInMinutes = startH * 60 + startM;
+        const endInMinutes = endH * 60 + endM;
+        
+        if (currentTimeInMinutes < startInMinutes || currentTimeInMinutes >= endInMinutes) {
+          console.log(`⏰ Fora do horário configurado (${this._config.startTime || '08:00'} - ${this._config.endTime || '19:00'}). Pausando postagens.`);
+          return logs;
+        }
       }
 
       // Ensure we have current settings (cloud fallback)

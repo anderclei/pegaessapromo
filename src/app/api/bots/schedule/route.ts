@@ -46,7 +46,7 @@ export async function POST(request: Request) {
       case 'run-now':
         if (groups) postScheduler.setGroups(groups);
         if (affiliateConfig) postScheduler.setAffiliateConfig(affiliateConfig);
-        const logs = await postScheduler.runPostingCycle();
+        const logs = await postScheduler.runPostingCycle(true);
         return NextResponse.json({ success: true, logs });
 
       default:

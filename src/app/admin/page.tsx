@@ -4,58 +4,17 @@ import { useState, useEffect, useCallback } from 'react';
 import { Product, Platform } from '@/lib/types';
 import { generateAllCopies, buildAffiliateLink, COPY_TEMPLATES } from '@/lib/copywriter';
 import { BotStatus, WhatsAppGroup, PostLog } from '@/lib/bots/types';
+import { GroupPool, PoolGroup } from '@/lib/bots/group-pools';
 import './admin.css';
 
 const formatPrice = (price: number) => {
   return price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
-const ProductCardAdmin = ({ product, onSelect }: { product: Product; onSelect: (p: Product) => void }) => {
-  const getLogo = (p: string) => {
-    switch (p) {
-      case 'amazon': return '/logos/amazon.jpg';
-      case 'shopee': return '/logos/shopee.jpg';
-      case 'mercadolivre': return '/logos/mercadolivre.png';
-      default: return '/logos/amazon.jpg';
-    }
-  };
 
-  return (
-    <div className="product-card border-glow clickable" onClick={() => onSelect(product)}>
-      <div className="product-image-container">
-        <img src={product.image} alt={product.title} className="product-image" loading="lazy" />
-        <div className="product-platform-circle">
-           <img src={getLogo(product.platform)} alt={product.platform} />
-        </div>
-        {product.discount && (
-          <div className="product-discount-badge">-{product.discount}%</div>
-        )}
-        {product.type === 'lightning' && (
-          <div className="product-discount-badge lightning-type-badge">⚡ RELÂMPAGO</div>
-        )}
-        {product.type === 'super' && (
-          <div className="product-discount-badge super-type-badge">💸 SUPER</div>
-        )}
-      </div>
-      <div className="product-card-body">
-        <div className="product-meta">
-          <span className="product-sales">📦 {product.sales.toLocaleString('pt-BR')}+ vendidos</span>
-        </div>
-        <h3 className="product-title">{product.title}</h3>
-        <div className="product-price-row">
-          <span className="product-price">R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-        </div>
-        <button className="btn btn-primary admin-card-cta" onClick={(e) => { e.stopPropagation(); onSelect(product); }}>
-          ⚙️ Gerar Copy
-        </button>
-      </div>
-    </div>
-  );
-};
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'settings' | 'bots' | 'categories'>('settings');
-  const [products, setProducts] = useState<Product[]>([]);
+  const [activeTab, setActiveTab] = useState<'settings' | 'bots' | 'categories' | 'pools'>('settings');
   const [loading, setLoading] = useState(true);
   const [activePlatform, setActivePlatform] = useState<Platform>('amazon');
   
@@ -68,6 +27,13 @@ export default function AdminDashboard() {
   const [logs, setLogs] = useState<PostLog[]>([]);
   const [activeBotTab, setActiveBotTab] = useState<'connection' | 'groups' | 'logs'>('connection');
   const [loadingGroups, setLoadingGroups] = useState(false);
+  
+  // Bot Schedule Config State
+  const [intervalVal, setIntervalVal] = useState(60);
+  const [maxPosts, setMaxPosts] = useState(3);
+  const [startTime, setStartTime] = useState('08:00');
+  const [endTime, setEndTime] = useState('19:00');
+  const [template, setTemplate] = useState<'aida' | 'pas' | 'bab'>('aida');
   
   // Settings State
   const [affiliateConfig, setAffiliateConfig] = useState({ 
@@ -92,6 +58,11 @@ export default function AdminDashboard() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState('');
   const [editAmazonSlug, setEditAmazonSlug] = useState('');
+
+  // Pools State
+  const [pools, setPools] = useState<GroupPool[]>([]);
+  const [loadingPools, setLoadingPools] = useState(false);
+  const [selectedPoolId, setSelectedPoolId] = useState<string | null>(null);
 
   const startEditing = (cat: any) => {
     setEditingId(cat.id);
@@ -160,6 +131,82 @@ export default function AdminDashboard() {
     } catch (err) { console.error(err); }
   };
 
+  // --- Pools Actions ---
+  const fetchPools = async () => {
+    setLoadingPools(true);
+    try {
+      const res = await fetch('/api/bots/groups');
+      const data = await res.json();
+      if (data.success) setPools(data.pools);
+    } catch (e) { console.error(e); }
+    setLoadingPools(false);
+  };
+
+  const handleCreatePool = async (category: string) => {
+    try {
+      const res = await fetch('/api/bots/groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'createPool', payload: { category } })
+      });
+      if (res.ok) fetchPools();
+    } catch (e) { console.error(e); }
+  };
+
+  const handleAddGroupToPool = async (poolId: string, groupData: any) => {
+    try {
+      const res = await fetch('/api/bots/groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'addGroup', payload: { poolId, group: groupData } })
+      });
+      if (res.ok) fetchPools();
+    } catch (e) { console.error(e); }
+  };
+
+  const handleDeletePool = async (poolId: string) => {
+    if (!confirm('Excluir este gerenciador de links? Todos os dados dele serão perdidos.')) return;
+    try {
+      const res = await fetch('/api/bots/groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'deletePool', payload: { poolId } })
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchPools();
+      } else {
+        alert('Erro ao excluir: ' + (data.error || 'Erro desconhecido'));
+      }
+    } catch (e) { 
+      console.error(e);
+      alert('Erro de rede ao tentar excluir.');
+    }
+  };
+
+  const handleRemoveGroupFromPool = async (poolId: string, groupId: string) => {
+    if (!confirm('Remover este grupo do redirecionamento?')) return;
+    try {
+      const res = await fetch('/api/bots/groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'removeGroup', payload: { poolId, groupId } })
+      });
+      if (res.ok) fetchPools();
+    } catch (e) { console.error(e); }
+  };
+
+  const handleUpdateGroupStats = async (poolId: string, groupId: string, updates: Partial<PoolGroup>) => {
+    try {
+      await fetch('/api/bots/groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'updateGroup', payload: { poolId, groupId, updates } })
+      });
+      fetchPools();
+    } catch (e) { console.error(e); }
+  };
+
   // --- WhatsApp Bot Actions ---
   const handleStartBot = async () => {
     setBotStatus('connecting');
@@ -206,6 +253,14 @@ export default function AdminDashboard() {
       setScheduleEnabled(schData.isRunning);
       setSelectedGroups(schData.selectedGroups || []);
       if (schData.logs) setLogs(schData.logs);
+      
+      if (schData.config) {
+        if (schData.config.intervalMinutes) setIntervalVal(schData.config.intervalMinutes);
+        if (schData.config.maxPostsPerRun) setMaxPosts(schData.config.maxPostsPerRun);
+        if (schData.config.startTime) setStartTime(schData.config.startTime);
+        if (schData.config.endTime) setEndTime(schData.config.endTime);
+        if (schData.config.template) setTemplate(schData.config.template);
+      }
     } catch (e) { console.error(e); }
   }, []);
 
@@ -218,11 +273,68 @@ export default function AdminDashboard() {
         body: JSON.stringify({ 
           action, 
           groups: selectedGroups,
-          affiliateConfig
+          affiliateConfig,
+          config: {
+            intervalMinutes: intervalVal,
+            maxPostsPerRun: maxPosts,
+            startTime,
+            endTime,
+            template,
+            platforms: { whatsapp: true, instagram: true }
+          }
         })
       });
       if (res.ok) setScheduleEnabled(!scheduleEnabled);
     } catch (e) { console.error(e); }
+  };
+
+  const handleSaveBotConfig = async () => {
+    try {
+      const res = await fetch('/api/bots/schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action: 'configure', 
+          groups: selectedGroups,
+          affiliateConfig,
+          config: {
+            intervalMinutes: intervalVal,
+            maxPostsPerRun: maxPosts,
+            startTime,
+            endTime,
+            template,
+            platforms: { whatsapp: true, instagram: true }
+          }
+        })
+      });
+      if (res.ok) {
+        alert('Configurações do Robô salvas com sucesso!');
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const handleRunNow = async () => {
+    try {
+      setLoadingGroups(true);
+      const res = await fetch('/api/bots/schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action: 'run-now', 
+          groups: selectedGroups,
+          affiliateConfig,
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Ciclo de postagem iniciado manualmente!');
+        syncBotState();
+      }
+    } catch (e) { 
+      console.error(e);
+      alert('Erro ao tentar postar agora.');
+    }
+    setLoadingGroups(false);
   };
 
   const toggleGroup = (id: string) => {
@@ -284,6 +396,10 @@ export default function AdminDashboard() {
     return () => clearInterval(interval);
   }, [activePlatform, syncBotState]);
 
+  useEffect(() => {
+    if (activeTab === 'pools') fetchPools();
+  }, [activeTab]);
+
   const handleSaveSettings = async () => {
     localStorage.setItem('affiliateConfig', JSON.stringify(affiliateConfig));
     try {
@@ -304,7 +420,6 @@ export default function AdminDashboard() {
   return (
     <div className="admin-container">
       <div className="catalogue-container">
-        {/* Admin Tabs */}
         <div className="admin-tabs">
           <button 
             onClick={() => setActiveTab('settings')}
@@ -324,7 +439,14 @@ export default function AdminDashboard() {
           >
             📂 Categorias
           </button>
+          <button 
+            onClick={() => setActiveTab('pools')}
+            className={`admin-tab ${activeTab === 'pools' ? 'active' : ''}`}
+          >
+            🔗 Links Inteligentes
+          </button>
         </div>
+
 
 
 
@@ -531,20 +653,93 @@ export default function AdminDashboard() {
             )}
 
             {activeBotTab === 'groups' && (
+              <>
+              <div className="admin-card" style={{ marginBottom: '1.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                  <div>
+                    <h3>⚙️ Frequência e Período</h3>
+                    <p style={{ fontSize: '0.85rem' }}>Configure quando e com que frequência o robô deve postar.</p>
+                  </div>
+                  <button className="btn btn-secondary btn-sm" onClick={handleSaveBotConfig}>💾 Salvar Configurações</button>
+                </div>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+                  <div className="form-field">
+                    <label style={{ color: '#333', fontWeight: 'bold' }}>Intervalo de Postagem</label>
+                    <select 
+                      value={intervalVal} 
+                      onChange={e => setIntervalVal(Number(e.target.value))}
+                      style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc', padding: '8px', borderRadius: '8px' }}
+                    >
+                      <option value={15}>A cada 15 minutos</option>
+                      <option value={30}>A cada 30 minutos</option>
+                      <option value={60}>A cada 1 hora</option>
+                      <option value={120}>A cada 2 horas</option>
+                      <option value={240}>A cada 4 horas</option>
+                    </select>
+                  </div>
+
+                  <div className="form-field">
+                    <label style={{ color: '#333', fontWeight: 'bold' }}>Produtos por Ciclo</label>
+                    <select 
+                      value={maxPosts} 
+                      onChange={e => setMaxPosts(Number(e.target.value))}
+                      style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc', padding: '8px', borderRadius: '8px' }}
+                    >
+                      <option value={1}>1 produto</option>
+                      <option value={2}>2 produtos</option>
+                      <option value={3}>3 produtos</option>
+                      <option value={5}>5 produtos</option>
+                      <option value={10}>10 produtos</option>
+                    </select>
+                  </div>
+
+                  <div className="form-field">
+                    <label style={{ color: '#333', fontWeight: 'bold' }}>Início das Postagens</label>
+                    <input 
+                      type="time" 
+                      value={startTime} 
+                      onChange={e => setStartTime(e.target.value)}
+                      style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc', padding: '8px', borderRadius: '8px' }}
+                    />
+                  </div>
+
+                  <div className="form-field">
+                    <label style={{ color: '#333', fontWeight: 'bold' }}>Fim das Postagens</label>
+                    <input 
+                      type="time" 
+                      value={endTime} 
+                      onChange={e => setEndTime(e.target.value)}
+                      style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc', padding: '8px', borderRadius: '8px' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="admin-card">
                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                     <div>
                       <h3>Seleção de Grupos Alvo</h3>
                       <p style={{ fontSize: '0.85rem' }}>Escolha em quais grupos o robô deve postar as ofertas.</p>
                     </div>
-                    <button 
-                      className={`btn ${scheduleEnabled ? 'btn-delete' : 'btn-primary'}`}
-                      onClick={handleToggleSchedule}
-                      disabled={botStatus !== 'connected' || selectedGroups.length === 0}
-                      style={{ opacity: (botStatus !== 'connected' || selectedGroups.length === 0) ? 0.5 : 1 }}
-                    >
-                      {scheduleEnabled ? '🛑 Parar Automação' : '⚡ Ativar Postagem IA'}
-                    </button>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button 
+                        className={`btn ${scheduleEnabled ? 'btn-delete' : 'btn-primary'}`}
+                        onClick={handleToggleSchedule}
+                        disabled={botStatus !== 'connected' || selectedGroups.length === 0}
+                        style={{ opacity: (botStatus !== 'connected' || selectedGroups.length === 0) ? 0.5 : 1 }}
+                      >
+                        {scheduleEnabled ? '🛑 Parar Automação' : '⚡ Ativar Postagem IA'}
+                      </button>
+                      <button 
+                        className="btn btn-secondary"
+                        onClick={handleRunNow}
+                        disabled={botStatus !== 'connected' || selectedGroups.length === 0 || loadingGroups}
+                        style={{ opacity: (botStatus !== 'connected' || selectedGroups.length === 0 || loadingGroups) ? 0.5 : 1 }}
+                      >
+                        🚀 Postar Agora
+                      </button>
+                    </div>
                  </div>
 
                  {botStatus !== 'connected' ? (
@@ -594,7 +789,7 @@ export default function AdminDashboard() {
                    </div>
                  )}
               </div>
-            )}
+            </>)}
 
             {activeBotTab === 'logs' && (
               <div className="admin-card">
@@ -732,6 +927,138 @@ export default function AdminDashboard() {
                   </div>
                 ))}
               </div>
+            </div>
+          </section>
+        )}
+
+        {activeTab === 'pools' && (
+          <section className="settings-section">
+             <div className="admin-header-row" style={{ marginBottom: '1.5rem' }}>
+              <div className="admin-title-section">
+                <h2>🔗 Gerenciador de Links Rotativos</h2>
+                <p>Crie um link único que redireciona automaticamente para grupos que ainda têm vagas.</p>
+              </div>
+            </div>
+
+            <div className="admin-card" style={{ marginBottom: '2rem' }}>
+              <h3>Novo Gerenciador por Categoria</h3>
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                <select 
+                  className="form-field-input" 
+                  style={{ flex: 1 }}
+                  onChange={(e) => setSelectedPoolId(e.target.value)}
+                  value={selectedPoolId || ''}
+                >
+                  <option value="">Selecione uma categoria...</option>
+                  {dbCategories.map(c => (
+                    <option key={c.id} value={c.id}>{c.label}</option>
+                  ))}
+                </select>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={() => selectedPoolId && handleCreatePool(selectedPoolId)}
+                  disabled={!selectedPoolId || pools.some(p => p.category === selectedPoolId)}
+                >
+                  Criar Gerenciador
+                </button>
+              </div>
+              <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.5rem' }}>
+                Isso criará a rota: <code>{affiliateConfig.siteUrl}/entrar/[categoria]</code>
+              </p>
+            </div>
+
+            <div className="pools-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '2rem' }}>
+              {pools.map(pool => (
+                <div key={pool.id} className="admin-card" style={{ borderLeft: '4px solid #f59e0b' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                    <div>
+                      <h3 style={{ textTransform: 'uppercase', letterSpacing: '1px', color: '#000' }}>🏢 Categoria: {dbCategories.find(c => c.id === pool.category)?.label || pool.category}</h3>
+                      <p style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                        Link de Divulgação: <a href={`${affiliateConfig.siteUrl}/entrar/${pool.category}`} target="_blank" style={{ color: '#2563eb', fontWeight: 'bold' }}>
+                          {affiliateConfig.siteUrl}/entrar/{pool.category}
+                        </a>
+                      </p>
+                    </div>
+                    <button className="btn btn-delete btn-sm" onClick={() => handleDeletePool(pool.id)}>
+                       🗑️ Excluir Gerenciador
+                    </button>
+                  </div>
+
+                  <div className="groups-table" style={{ background: '#f8fafc', borderRadius: '12px', overflow: 'hidden' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                      <thead>
+                        <tr style={{ background: '#f1f5f9', fontSize: '0.75rem', textTransform: 'uppercase', color: '#64748b' }}>
+                          <th style={{ padding: '12px' }}>Nome do Grupo</th>
+                          <th style={{ padding: '12px' }}>Link de Convite</th>
+                          <th style={{ padding: '12px', textAlign: 'center' }}>Vagas</th>
+                          <th style={{ padding: '12px', textAlign: 'center' }}>Status</th>
+                          <th style={{ padding: '12px', textAlign: 'right' }}>Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pool.groups.map(group => (
+                          <tr key={group.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                            <td style={{ padding: '12px', fontSize: '0.9rem', fontWeight: 'bold' }}>{group.name}</td>
+                            <td style={{ padding: '12px', fontSize: '0.8rem' }}>
+                              <code style={{ background: '#fff', padding: '2px 6px', borderRadius: '4px' }}>{group.inviteLink?.substring(0, 30)}...</code>
+                            </td>
+                            <td style={{ padding: '12px', textAlign: 'center' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                <input 
+                                  type="number" 
+                                  value={group.memberCount} 
+                                  onChange={(e) => handleUpdateGroupStats(pool.id, group.id, { memberCount: parseInt(e.target.value) })}
+                                  style={{ width: '60px', padding: '4px', textAlign: 'center', fontSize: '0.8rem' }}
+                                />
+                                <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>/ {group.maxCapacity}</span>
+                              </div>
+                            </td>
+                            <td style={{ padding: '12px', textAlign: 'center' }}>
+                              <button 
+                                onClick={() => handleUpdateGroupStats(pool.id, group.id, { isActive: !group.isActive })}
+                                style={{ 
+                                  padding: '4px 10px', 
+                                  borderRadius: '10px', 
+                                  fontSize: '0.7rem', 
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  background: group.isActive ? '#dcfce7' : '#fee2e2',
+                                  color: group.isActive ? '#166534' : '#991b1b',
+                                  fontWeight: 'bold'
+                                }}
+                              >
+                                {group.isActive ? 'ATIVO' : 'PAUSADO'}
+                              </button>
+                            </td>
+                            <td style={{ padding: '12px', textAlign: 'right' }}>
+                              <button className="btn btn-icon btn-delete" onClick={() => handleRemoveGroupFromPool(pool.id, group.id)}>🗑️</button>
+                            </td>
+                          </tr>
+                        ))}
+                        <tr style={{ background: 'white' }}>
+                          <td colSpan={5} style={{ padding: '15px' }}>
+                             <div style={{ display: 'flex', gap: '10px' }}>
+                                <input id={`name-${pool.id}`} type="text" placeholder="Nome do Grupo" style={{ flex: 1, fontSize: '0.8rem' }} />
+                                <input id={`link-${pool.id}`} type="text" placeholder="https://chat.whatsapp.com/..." style={{ flex: 2, fontSize: '0.8rem' }} />
+                                <button className="btn btn-sm btn-primary" onClick={() => {
+                                  const name = (document.getElementById(`name-${pool.id}`) as any).value;
+                                  const link = (document.getElementById(`link-${pool.id}`) as any).value;
+                                  if (name && link) handleAddGroupToPool(pool.id, { name, inviteLink: link });
+                                }}>➕ Adicionar Grupo</button>
+                             </div>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
+              
+              {pools.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '4rem', color: '#94a3b8' }}>
+                   Nenhum gerenciador de links criado ainda. Selecione uma categoria acima para começar.
+                </div>
+              )}
             </div>
           </section>
         )}

@@ -14,6 +14,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const { action, payload } = await req.json();
+    console.log(`[GroupsAPI] Action: ${action}`, payload);
 
     switch (action) {
       case 'createPool': {

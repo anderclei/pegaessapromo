@@ -53,6 +53,8 @@ export interface ScheduleConfig {
     instagram: boolean;
   };
   maxPostsPerRun: number;
+  startTime?: string; // HH:mm
+  endTime?: string;   // HH:mm
 }
 
 export interface PostLog {

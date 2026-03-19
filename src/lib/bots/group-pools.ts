@@ -91,8 +91,11 @@ export class GroupPoolService {
   }
 
   public deletePool(poolId: string): boolean {
+    this.loadPools();
+    console.log(`[GroupPoolService] Deleting pool ${poolId}. Current pools:`, this.pools.map(p => p.id));
     const initialLength = this.pools.length;
     this.pools = this.pools.filter(p => p.id !== poolId);
+    console.log(`[GroupPoolService] Pools after filter: ${this.pools.length}`);
     if (this.pools.length !== initialLength) {
       this.savePools();
       return true;
@@ -103,6 +106,7 @@ export class GroupPoolService {
   // --- Gerenciamento de Grupos dentro dos Pools ---
 
   public addGroupToPool(poolId: string, group: Omit<PoolGroup, 'id' | 'memberCount'> & { id?: string, memberCount?: number }): GroupPool | undefined {
+    this.loadPools();
     const pool = this.pools.find(p => p.id === poolId);
     if (!pool) return undefined;
 
@@ -120,6 +124,7 @@ export class GroupPoolService {
   }
 
   public updateGroupInPool(poolId: string, groupId: string, updates: Partial<PoolGroup>): GroupPool | undefined {
+    this.loadPools();
     const pool = this.pools.find(p => p.id === poolId);
     if (!pool) return undefined;
 
@@ -132,6 +137,7 @@ export class GroupPoolService {
   }
 
   public removeGroupFromPool(poolId: string, groupId: string): GroupPool | undefined {
+    this.loadPools();
     const pool = this.pools.find(p => p.id === poolId);
     if (!pool) return undefined;
 

@@ -3,6 +3,8 @@ import * as QRCode from 'qrcode';
 import { BotStatus, WhatsAppGroup, PostLog } from './types';
 import { Product } from '../types';
 import { generateAllCopies, buildAffiliateLink } from '../copywriter';
+import { savePromotion } from '../promotions';
+import { getSettings } from '../settings';
 
 class WhatsAppBot {
   private client: Client | null = null;
@@ -156,10 +158,37 @@ class WhatsAppBot {
     }
 
     try {
-      // Use internal site link for WhatsApp instead of direct affiliate link, if siteUrl is configured
-      const siteLink = affiliateConfig.siteUrl ? `${affiliateConfig.siteUrl}/p/${product.id}` : buildAffiliateLink(product, affiliateConfig);
-      
-      const copies = await generateAllCopies(product, siteLink, affiliateConfig);
+      // Always ensure geminiKey is loaded from cloud settings
+      let config = { ...affiliateConfig };
+      if (!config.geminiKey) {
+        try {
+          const cloudSettings = await getSettings();
+          if (cloudSettings) config = { ...config, ...cloudSettings };
+        } catch (e) {
+          console.error('Falha ao carregar geminiKey das settings:', e);
+        }
+      }
+
+      // Build the affiliate link for this product
+      const affiliateProductLink = buildAffiliateLink(product, config);
+
+      // Save promotion to Supabase so the /p/[id] page works
+      let promotionId = product.id;
+      if (config.siteUrl) {
+        try {
+          promotionId = await savePromotion(product, affiliateProductLink);
+        } catch (e) {
+          console.error('Erro ao salvar promoção no Supabase, usando ID direto:', e);
+        }
+      }
+
+      // Build the site link using the saved promotion ID
+      const siteLink = config.siteUrl
+        ? `${config.siteUrl}/p/${promotionId}`
+        : affiliateProductLink;
+
+      // Generate copy (Gemini if key available, fallback to template)
+      const copies = await generateAllCopies(product, siteLink, config);
       const templateCopies = copies[template];
       const whatsappCopy = templateCopies.find((c: any) => c.platform === 'whatsapp');
 
@@ -167,25 +196,49 @@ class WhatsAppBot {
         throw new Error('Template de WhatsApp não encontrado');
       }
 
-      // Try to send with image
+      // Try to send with image using fetch with browser-like headers
+      let sentWithImage = false;
       if (product.image && product.image.startsWith('http')) {
         try {
-          const media = await MessageMedia.fromUrl(product.image, {
-            unsafeMime: true,
+          const imgResponse = await fetch(product.image, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
+              'Accept-Language': 'pt-BR,pt;q=0.9',
+              'Referer': 'https://www.amazon.com.br/',
+            },
           });
-          await this.client.sendMessage(groupId, media, {
-            caption: whatsappCopy.body,
-          });
-        } catch {
-          // Fallback: send text only
-          await this.client.sendMessage(groupId, whatsappCopy.body);
+          if (imgResponse.ok) {
+            const buffer = Buffer.from(await imgResponse.arrayBuffer());
+            const contentType = imgResponse.headers.get('content-type') || 'image/jpeg';
+            const base64 = buffer.toString('base64');
+            const media = new MessageMedia(contentType, base64, 'product.jpg');
+            await this.client.sendMessage(groupId, media, { caption: whatsappCopy.body });
+            sentWithImage = true;
+          }
+        } catch (imgErr) {
+          console.warn('Falha ao baixar imagem via fetch, tentando MessageMedia.fromUrl:', imgErr);
         }
-      } else {
+
+        // Second attempt: MessageMedia.fromUrl
+        if (!sentWithImage) {
+          try {
+            const media = await MessageMedia.fromUrl(product.image, { unsafeMime: true });
+            await this.client.sendMessage(groupId, media, { caption: whatsappCopy.body });
+            sentWithImage = true;
+          } catch (urlErr) {
+            console.warn('Falha em MessageMedia.fromUrl, enviando apenas texto:', urlErr);
+          }
+        }
+      }
+
+      // Final fallback: text only
+      if (!sentWithImage) {
         await this.client.sendMessage(groupId, whatsappCopy.body);
       }
 
       log.status = 'success';
-      log.message = 'Mensagem enviada com sucesso';
+      log.message = sentWithImage ? 'Mensagem com imagem enviada com sucesso' : 'Mensagem enviada (sem imagem)';
       this._postedProductIds.add(product.id);
     } catch (error) {
       log.status = 'error';
