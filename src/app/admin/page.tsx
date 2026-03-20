@@ -70,6 +70,8 @@ export default function AdminDashboard() {
   const [offers, setOffers] = useState<any[]>([]);
   const [loadingOffers, setLoadingOffers] = useState(false);
   const [sendingOffer, setSendingOffer] = useState<string | null>(null);
+  const [savingPromo, setSavingPromo] = useState<string | null>(null);
+  const [generatingCopyFor, setGeneratingCopyFor] = useState<string | null>(null);
   const [expandedCopy, setExpandedCopy] = useState<string | null>(null);
 
   const startEditing = (cat: any) => {
@@ -276,6 +278,55 @@ export default function AdminDashboard() {
       alert('Erro de rede ao enviar a oferta.');
     }
     setSendingOffer(null);
+  };
+
+  const handleStandbyOffer = async (product: any) => {
+    setSavingPromo(product.id);
+    try {
+      const res = await fetch('/api/bots/schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'standby-now',
+          affiliateConfig,
+          singleProduct: product,
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`✨ ${data.message || 'Adicionado com sucesso!'}`);
+      } else {
+        alert('Erro ao processar: ' + (data.message || 'Erro desconhecido'));
+      }
+    } catch (e) {
+      alert('Erro de rede ao salvar no site.');
+    }
+    setSavingPromo(null);
+  };
+
+  const handleGenerateCopyOnly = async (product: any) => {
+    setGeneratingCopyFor(product.id);
+    try {
+      const res = await fetch('/api/bots/schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'generate-copy-only',
+          affiliateConfig,
+          singleProduct: product,
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.creativeCopy) {
+        // Update local state with the newly generated copy so it displays immediately
+        setOffers(prevOffers => prevOffers.map(o => o.id === product.id ? { ...o, creativeCopy: data.creativeCopy } : o));
+      } else {
+        alert('Erro ao gerar copy: ' + (data.message || 'Erro desconhecido'));
+      }
+    } catch (e) {
+      alert('Erro de rede ao conectar à IA.');
+    }
+    setGeneratingCopyFor(null);
   };
 
   // --- WhatsApp Bot Actions ---
@@ -1339,36 +1390,72 @@ export default function AdminDashboard() {
                           onClick={() => setExpandedCopy(expandedCopy === product.id ? null : product.id)}
                           style={{ background: 'none', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '6px 12px', fontSize: '0.75rem', cursor: 'pointer', color: '#64748b', width: '100%', textAlign: 'left' }}
                         >
-                          💬 {expandedCopy === product.id ? '▲ Esconder Copy' : '▼ Ver Copy do WhatsApp'}
+                          💬 {expandedCopy === product.id ? '▲ Esconder Rascunho' : '▼ Ver Estrutura Base'}
                         </button>
                         {expandedCopy === product.id && (
-                          <pre style={{ 
-                            background: '#f0fdf4', 
-                            border: '1px solid #bbf7d0', 
-                            borderRadius: '8px', 
-                            padding: '10px', 
-                            fontSize: '0.75rem', 
-                            whiteSpace: 'pre-wrap', 
-                            wordBreak: 'break-word',
-                            marginTop: '8px',
-                            color: '#0f172a',
-                            maxHeight: '200px',
-                            overflowY: 'auto'
-                          }}>
-                            {product._copy}
-                          </pre>
+                          <div style={{ marginTop: '8px' }}>
+                            {!product.creativeCopy ? (
+                              <div style={{ fontSize: '0.7rem', padding: '6px', background: '#e0f2fe', color: '#0369a1', borderRadius: '6px', marginBottom: '6px', fontWeight: 'bold', display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                <span>✨</span>
+                                <span>Este é um rascunho estrutural rápido. A copy autêntica da Inteligência Artificial pode ser gerada abaixo para você conferir antes.</span>
+                              </div>
+                            ) : (
+                              <div style={{ fontSize: '0.7rem', padding: '6px', background: '#dcfce7', color: '#166534', borderRadius: '6px', marginBottom: '6px', fontWeight: 'bold', display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                <span>✅</span>
+                                <span>Mágica Concluída! Esta Copy Criativa Exclusiva Oficial será utilizada no envio ou divulgada no site (standby).</span>
+                              </div>
+                            )}
+
+                            <pre style={{ 
+                              background: '#f8fafc', 
+                              border: '1px dashed #cbd5e1', 
+                              borderRadius: '8px', 
+                              padding: '10px', 
+                              fontSize: '0.75rem', 
+                              whiteSpace: 'pre-wrap', 
+                              wordBreak: 'break-word',
+                              color: '#475569',
+                              maxHeight: '200px',
+                              overflowY: 'auto'
+                            }}>
+                              {product.creativeCopy || product._copy}
+                            </pre>
+
+                            {!product.creativeCopy && (
+                              <button
+                                className="btn btn-sm"
+                                style={{ marginTop: '8px', width: '100%', backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1' }}
+                                disabled={generatingCopyFor === product.id}
+                                onClick={() => handleGenerateCopyOnly(product)}
+                              >
+                                {generatingCopyFor === product.id ? '🧠 Pensando...' : '✨ Gerar Copy Criativa Agora'}
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
 
-                      {/* Send Button */}
-                      <button
-                        className="btn btn-primary"
-                        style={{ width: '100%', opacity: (sendingOffer === product.id || botStatus !== 'connected') ? 0.6 : 1 }}
-                        disabled={sendingOffer === product.id || botStatus !== 'connected'}
-                        onClick={() => handleSendOffer(product)}
-                      >
-                        {sendingOffer === product.id ? '⏳ Enviando...' : '🚀 Enviar para o Grupo'}
-                      </button>
+                      {/* Send and Standby Buttons */}
+                      <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                        <button
+                          className="btn btn-sm"
+                          style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', opacity: savingPromo === product.id ? 0.6 : 1 }}
+                          disabled={savingPromo === product.id}
+                          onClick={() => handleStandbyOffer(product)}
+                        >
+                          {savingPromo === product.id ? '⏳ Gerando...' : '💾 Salvar Site (Standby)'}
+                        </button>
+
+                        <button
+                          className="btn btn-primary btn-sm"
+                          style={{ flex: 1, opacity: (sendingOffer === product.id || botStatus !== 'connected') ? 0.6 : 1 }}
+                          disabled={sendingOffer === product.id || botStatus !== 'connected'}
+                          onClick={() => handleSendOffer(product)}
+                          title={botStatus !== 'connected' ? 'Conecte o bot para enviar mensagens' : 'Gera a Copy e dipara agora para o Zap'}
+                        >
+                          {sendingOffer === product.id ? '⏳ Enviando...' : '🚀 Enviar para Grupos'}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
