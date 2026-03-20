@@ -73,6 +73,21 @@ export async function POST(request: Request) {
           state: whatsappBot.getState(),
         });
 
+      case 'sync-groups': {
+        const groups = await whatsappBot.syncGroupsFromPhone();
+        try {
+          const { getSettings, saveSettings } = await import('@/lib/settings');
+          const currentSettings = await getSettings();
+          if (currentSettings) {
+            await saveSettings({ ...currentSettings, fixedWhatsAppGroups: groups });
+            await whatsappBot.loadGroups(); // Atualiza a memória do bot!
+          }
+        } catch (e) {
+          console.error("Erro ao salvar grupos no DB", e);
+        }
+        return NextResponse.json({ success: true, groups });
+      }
+
       case 'kill-process':
         // Only kill processes, do not restart
         await whatsappBot.disconnect().catch(() => {});

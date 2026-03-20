@@ -10,6 +10,12 @@ export interface AffiliateConfig {
   geminiKey?: string;
   siteUrl?: string;
   copyStyle?: string;
+  schedulerEnabled?: boolean;
+  scheduleInterval?: number;
+  scheduleMaxPosts?: number;
+  scheduleStartTime?: string;
+  scheduleEndTime?: string;
+  fixedWhatsAppGroups?: any[];
 }
 
 export async function getSettings(): Promise<AffiliateConfig | null> {

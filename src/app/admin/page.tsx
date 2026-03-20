@@ -999,45 +999,80 @@ export default function AdminDashboard() {
                       Primeiro conecte o WhatsApp na aba <b>Conexão</b> para listar seus grupos.
                    </div>
                  ) : (
-                   <div className="groups-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
-                      {wpGroups.map(group => (
-                        <div key={group.id} 
-                          onClick={() => toggleGroup(group.id)}
-                          style={{ 
-                            padding: '1rem', 
-                            borderRadius: '12px', 
-                            border: '1px solid',
-                            borderColor: selectedGroups.includes(group.id) ? '#22c55e' : '#e2e8f0',
-                            backgroundColor: selectedGroups.includes(group.id) ? '#f0fdf4' : 'white',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '12px',
-                            transition: 'all 0.2s'
-                          }}
-                        >
-                          <div style={{ 
-                            width: '24px', 
-                            height: '24px', 
-                            borderRadius: '50%', 
-                            border: '2px solid',
-                            borderColor: selectedGroups.includes(group.id) ? '#22c55e' : '#cbd5e1',
-                            backgroundColor: selectedGroups.includes(group.id) ? '#22c55e' : 'transparent',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'white',
-                            fontSize: '14px'
-                          }}>
-                            {selectedGroups.includes(group.id) && '✓'}
+                   <div style={{ padding: '0 1rem' }}>
+                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', background: '#f8fafc', padding: '15px', borderRadius: '10px' }}>
+                       <div>
+                         <h4 style={{ margin: 0, color: '#334155' }}>Grupos Sincronizados</h4>
+                         <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>
+                           Para não travar o carregamento do robô, os grupos não são mais buscados automaticamente. 
+                           Clique no botão ao lado se tiver criado um <b>novo grupo</b> recentemente.
+                         </p>
+                       </div>
+                       <button 
+                         className="btn btn-secondary btn-sm"
+                         onClick={async () => {
+                           if (!confirm('Buscar as dezenas de mensagens do WhatsApp pode levar alguns minutos. Deseja continuar?')) return;
+                           const btn = document.getElementById('btn-sync-groups');
+                           if(btn) btn.innerText = '⏳ Sincronizando...';
+                           try {
+                             const res = await fetch('/api/bots/whatsapp', { method: 'POST', body: JSON.stringify({ action: 'sync-groups' }) });
+                             const data = await res.json();
+                             if (data.groups) {
+                               alert(data.groups.length + ' grupos encontrados! Eles agora estão salvos para você selecionar.');
+                               window.location.reload();
+                             }
+                           } catch (e) {
+                             alert('Falha ao sincronizar.');
+                           }
+                           if(btn) btn.innerText = '🔄 Sincronizar Novos Grupos do Zap';
+                         }}
+                         id="btn-sync-groups"
+                         style={{ backgroundColor: '#0284c7', color: 'white', border: 'none' }}
+                       >
+                         🔄 Sincronizar Novos Grupos do Zap
+                       </button>
+                     </div>
+
+                     <div className="groups-list" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
+                        {wpGroups.map(group => (
+                          <div key={group.id} 
+                            onClick={() => toggleGroup(group.id)}
+                            style={{ 
+                              padding: '1rem', 
+                              borderRadius: '12px', 
+                              border: '1px solid',
+                              borderColor: selectedGroups.includes(group.id) ? '#22c55e' : '#e2e8f0',
+                              backgroundColor: selectedGroups.includes(group.id) ? '#f0fdf4' : 'white',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '12px',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            <div style={{ 
+                              width: '24px', 
+                              height: '24px', 
+                              borderRadius: '50%', 
+                              border: '2px solid',
+                              borderColor: selectedGroups.includes(group.id) ? '#22c55e' : '#cbd5e1',
+                              backgroundColor: selectedGroups.includes(group.id) ? '#22c55e' : 'transparent',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'white',
+                              fontSize: '14px'
+                            }}>
+                              {selectedGroups.includes(group.id) && '✓'}
+                            </div>
+                            <div style={{ overflow: 'hidden' }}>
+                              <div style={{ fontWeight: 'bold', whiteSpace: 'nowrap', textOverflow: 'ellipsis', color: '#000' }}>{group.name}</div>
+                              <div style={{ fontSize: '11px', color: '#64748b' }}>{group.participantsCount} participantes</div>
+                            </div>
                           </div>
-                          <div style={{ overflow: 'hidden' }}>
-                            <div style={{ fontWeight: 'bold', whiteSpace: 'nowrap', textOverflow: 'ellipsis', color: '#000' }}>{group.name}</div>
-                            <div style={{ fontSize: '11px', color: '#64748b' }}>{group.participantsCount} participantes</div>
-                          </div>
-                        </div>
-                      ))}
-                      {wpGroups.length === 0 && <div className="admin-loading">Buscando grupos no seu WhatsApp...</div>}
+                        ))}
+                        {wpGroups.length === 0 && <div className="admin-loading" style={{ gridColumn: '1 / -1', padding: '2rem' }}>Nenhum grupo sincronizado. Clique no botão de buscar grupos acima para carregar pela 1ª vez.</div>}
+                     </div>
                    </div>
                  )}
               </div>

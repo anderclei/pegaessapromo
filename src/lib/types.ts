@@ -34,6 +34,15 @@ export interface AffiliateConfig {
   lomadeePrefix: string;
   awinPrefix: string;
   rakutenPrefix: string;
+  siteUrl?: string;
+  geminiKey?: string;
+  copyStyle?: string;
+  schedulerEnabled?: boolean;
+  scheduleInterval?: number;
+  scheduleMaxPosts?: number;
+  scheduleStartTime?: string;
+  scheduleEndTime?: string;
+  fixedWhatsAppGroups?: any[];
 }
 
 export type Platform = 'todos' | 'mercadolivre' | 'shopee' | 'aliexpress' | 'amazon' | 'lomadee' | 'awin' | 'rakuten';

@@ -78,7 +78,7 @@ class WhatsAppBot {
         this._connectedPhone = info.wid.user;
       }
 
-      // Load groups
+      // Load ONLY fixed groups from database instead of scanning phone chats!
       await this.loadGroups();
     });
 
@@ -106,16 +106,31 @@ class WhatsAppBot {
     }
   }
 
+  // A direct utility to load groups from DB instead of querying phone
   async loadGroups(): Promise<WhatsAppGroup[]> {
+    try {
+       const settings = await getSettings();
+       if (settings && settings.fixedWhatsAppGroups) {
+          this._groups = settings.fixedWhatsAppGroups;
+          return this._groups;
+       }
+    } catch (err) {}
+    this._groups = [];
+    return [];
+  }
+
+  // The heavy method, only called when manually requested by UI
+  async syncGroupsFromPhone(): Promise<WhatsAppGroup[]> {
     if (!this.client || this._status !== 'connected') {
       return [];
     }
 
     try {
+      console.log('⏳ Sincronizando grupos do celular a pedido do usuário... isso pode demorar.');
       const chats = await this.client.getChats();
       const groupChats = chats.filter(chat => chat.isGroup);
 
-      this._groups = await Promise.all(
+      const foundGroups = await Promise.all(
         groupChats.map(async (chat) => {
           const groupChat = chat as unknown as {
             id: { _serialized: string };
@@ -124,9 +139,7 @@ class WhatsAppBot {
           };
 
           const myId = this.client?.info?.wid?._serialized || '';
-          const me = groupChat.participants?.find(
-            (p) => p.id._serialized === myId
-          );
+          const me = groupChat.participants?.find((p) => p.id._serialized === myId);
 
           return {
             id: groupChat.id._serialized,
@@ -137,6 +150,10 @@ class WhatsAppBot {
           };
         })
       );
+      
+      console.log(`✅ ${foundGroups.length} grupos sincronizados com sucesso.`);
+      // We do NOT overwrite this._groups here unless we want to, wait, we can just return it.
+      return foundGroups;
 
       return this._groups;
     } catch (error) {
