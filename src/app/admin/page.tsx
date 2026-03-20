@@ -14,7 +14,7 @@ const formatPrice = (price: number) => {
 
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'settings' | 'bots' | 'categories' | 'pools'>('settings');
+  const [activeTab, setActiveTab] = useState<'settings' | 'bots' | 'categories' | 'pools' | 'offers'>('settings');
   const [loading, setLoading] = useState(true);
   const [activePlatform, setActivePlatform] = useState<Platform>('amazon');
   
@@ -25,6 +25,7 @@ export default function AdminDashboard() {
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [logs, setLogs] = useState<PostLog[]>([]);
+  const [mounted, setMounted] = useState(false);
   const [activeBotTab, setActiveBotTab] = useState<'connection' | 'groups' | 'logs'>('connection');
   const [loadingGroups, setLoadingGroups] = useState(false);
   
@@ -63,6 +64,12 @@ export default function AdminDashboard() {
   const [pools, setPools] = useState<GroupPool[]>([]);
   const [loadingPools, setLoadingPools] = useState(false);
   const [selectedPoolId, setSelectedPoolId] = useState<string | null>(null);
+
+  // Offers State
+  const [offers, setOffers] = useState<any[]>([]);
+  const [loadingOffers, setLoadingOffers] = useState(false);
+  const [sendingOffer, setSendingOffer] = useState<string | null>(null);
+  const [expandedCopy, setExpandedCopy] = useState<string | null>(null);
 
   const startEditing = (cat: any) => {
     setEditingId(cat.id);
@@ -207,6 +214,62 @@ export default function AdminDashboard() {
     } catch (e) { console.error(e); }
   };
 
+  // --- Offers Actions ---
+  const fetchOffers = async () => {
+    setLoadingOffers(true);
+    try {
+      const res = await fetch('/api/amazon?category=todos');
+      const data = await res.json();
+      const products = (data.products || [])
+        .filter((p: any) => p.price > 0)
+        .sort((a: any, b: any) => (b.discount || 0) - (a.discount || 0))
+        .slice(0, 30)
+        .map((p: any) => {
+          // Generate static AIDA copy preview
+          const price = p.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+          const disc = p.discount && p.discount > 0 ? ` com ${p.discount}% OFF` : '';
+          const copy = `🚨 *OFERTA IMPERDÍVEL${disc}!*\n\n*${p.title}*\n\n💰 *${price}*\n⭐ ${(p.rating||0).toFixed(1)} (${p.reviews||0} avaliações)\n📦 +${(p.sales||0).toLocaleString('pt-BR')} vendidos\n${p.freeShipping ? '🚚 *FRETE GRÁTIS*\n' : ''}\n👇 Link no site`;
+          return { ...p, _copy: copy, _fetchedAt: new Date().toISOString() };
+        });
+      setOffers(products);
+    } catch (e) { console.error(e); }
+    setLoadingOffers(false);
+  };
+
+  const handleSendOffer = async (product: any) => {
+    if (selectedGroups.length === 0) {
+      alert('Selecione ao menos um grupo na aba "Config Bot" → "Grupos Automáticos"');
+      return;
+    }
+    if (botStatus !== 'connected') {
+      alert('O robô precisa estar conectado. Vá na aba "Config Bot" → "Conexão".');
+      return;
+    }
+    setSendingOffer(product.id);
+    try {
+      const res = await fetch('/api/bots/schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'run-now',
+          groups: selectedGroups,
+          affiliateConfig,
+          // Pass only this specific product (override the scheduler's product selection)
+          singleProduct: product,
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`✅ Oferta "${product.title.substring(0, 50)}..." enviada com sucesso!`);
+      } else {
+        alert('Erro ao enviar: ' + (data.message || 'Erro desconhecido'));
+      }
+    } catch (e) {
+      alert('Erro de rede ao enviar a oferta.');
+    }
+    setSendingOffer(null);
+  };
+
   // --- WhatsApp Bot Actions ---
   const handleStartBot = async () => {
     setBotStatus('connecting');
@@ -346,6 +409,7 @@ export default function AdminDashboard() {
 
 
   useEffect(() => {
+    setMounted(true);
     syncBotState();
     const interval = setInterval(syncBotState, 5000);
     
@@ -445,6 +509,12 @@ export default function AdminDashboard() {
           >
             🔗 Links Inteligentes
           </button>
+          <button 
+            onClick={() => { setActiveTab('offers'); if (offers.length === 0) fetchOffers(); }}
+            className={`admin-tab ${activeTab === 'offers' ? 'active' : ''}`}
+          >
+            📦 Ofertas
+          </button>
         </div>
 
 
@@ -534,6 +604,13 @@ export default function AdminDashboard() {
                     value={affiliateConfig.siteUrl}
                     onChange={e => setAffiliateConfig({...affiliateConfig, siteUrl: e.target.value})}
                   />
+                  {mounted && affiliateConfig.siteUrl?.includes('pegaessapromo.com.br') && window.location.hostname === 'localhost' && (
+                    <div style={{ marginTop: '8px', padding: '10px', backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', color: '#92400e', fontSize: '0.8rem' }}>
+                      ⚠️ <b>CUIDADO:</b> Você está usando a URL de produção (pegaessapromo.com.br) enquanto o sistema roda localmente.
+                      Isso fará com que os links nas mensagens deem <b>Erro 404</b> ao serem clicados, pois o site de produção não conhece os dados do seu banco local.
+                      Para testes, use: <code>{window.location.origin}</code> e clique em <b>Salvar Tudo</b>.
+                    </div>
+                  )}
                </div>
             </div>
 
@@ -1060,6 +1137,119 @@ export default function AdminDashboard() {
                 </div>
               )}
             </div>
+          </section>
+        )}
+        {activeTab === 'offers' && (
+          <section className="settings-section">
+            <div className="admin-header-row" style={{ marginBottom: '1.5rem' }}>
+              <div className="admin-title-section">
+                <h2>📦 Ofertas para Disparo Manual</h2>
+                <p>Veja as últimas ofertas buscadas e envie individualmente para o grupo quando quiser.</p>
+              </div>
+              <button className="btn btn-secondary" onClick={fetchOffers} disabled={loadingOffers}>
+                {loadingOffers ? '⏳ Buscando...' : '🔄 Atualizar Ofertas'}
+              </button>
+            </div>
+
+            {botStatus !== 'connected' && (
+              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '1rem', marginBottom: '1.5rem', color: '#991b1b', fontSize: '0.85rem' }}>
+                ⚠️ O robô não está conectado. Conecte o WhatsApp na aba <b>Config Bot → Conexão</b> para poder enviar.
+              </div>
+            )}
+            {selectedGroups.length === 0 && botStatus === 'connected' && (
+              <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '12px', padding: '1rem', marginBottom: '1.5rem', color: '#92400e', fontSize: '0.85rem' }}>
+                ⚠️ Nenhum grupo selecionado. Selecione o grupo de destino na aba <b>Config Bot → Grupos Automáticos</b>.
+              </div>
+            )}
+
+            {loadingOffers ? (
+              <div className="admin-loading">Buscando ofertas...</div>
+            ) : offers.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '4rem', color: '#94a3b8' }}>
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📭</div>
+                <p>Nenhuma oferta carregada ainda.</p>
+                <button className="btn btn-primary" style={{ marginTop: '1rem' }} onClick={fetchOffers}>🔍 Buscar Ofertas Agora</button>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.5rem' }}>
+                {offers.map((product: any) => (
+                  <div key={product.id} className="admin-card" style={{ padding: '0', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                    {/* Product Image */}
+                    <div style={{ position: 'relative', height: '180px', background: '#f8fafc', overflow: 'hidden' }}>
+                      <img 
+                        src={product.image} 
+                        alt={product.title}
+                        style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '10px' }}
+                        onError={(e: any) => { e.target.style.display = 'none'; }}
+                      />
+                      {product.discount > 0 && (
+                        <div style={{ position: 'absolute', top: '10px', left: '10px', background: '#ef4444', color: 'white', borderRadius: '8px', padding: '4px 10px', fontWeight: 'bold', fontSize: '0.85rem' }}>
+                          -{product.discount}% OFF
+                        </div>
+                      )}
+                      <div style={{ position: 'absolute', top: '10px', right: '10px', background: '#0f172a', color: 'white', borderRadius: '8px', padding: '3px 8px', fontSize: '0.7rem' }}>
+                        {new Date(product._fetchedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+
+                    {/* Product Info */}
+                    <div style={{ padding: '1rem' }}>
+                      <p style={{ fontWeight: 'bold', fontSize: '0.85rem', color: '#0f172a', marginBottom: '6px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        {product.title}
+                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem' }}>
+                        {product.originalPrice && product.originalPrice > product.price && (
+                          <span style={{ fontSize: '0.75rem', color: '#94a3b8', textDecoration: 'line-through' }}>
+                            R$ {product.originalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </span>
+                        )}
+                        <span style={{ fontWeight: 'bold', color: '#16a34a', fontSize: '1.1rem' }}>
+                          R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </span>
+                        {product.freeShipping && <span style={{ fontSize: '0.7rem', background: '#dcfce7', color: '#166534', padding: '2px 6px', borderRadius: '6px', fontWeight: 'bold' }}>FRETE GRÁTIS</span>}
+                      </div>
+
+                      {/* Copy Preview */}
+                      <div style={{ marginBottom: '1rem' }}>
+                        <button 
+                          onClick={() => setExpandedCopy(expandedCopy === product.id ? null : product.id)}
+                          style={{ background: 'none', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '6px 12px', fontSize: '0.75rem', cursor: 'pointer', color: '#64748b', width: '100%', textAlign: 'left' }}
+                        >
+                          💬 {expandedCopy === product.id ? '▲ Esconder Copy' : '▼ Ver Copy do WhatsApp'}
+                        </button>
+                        {expandedCopy === product.id && (
+                          <pre style={{ 
+                            background: '#f0fdf4', 
+                            border: '1px solid #bbf7d0', 
+                            borderRadius: '8px', 
+                            padding: '10px', 
+                            fontSize: '0.75rem', 
+                            whiteSpace: 'pre-wrap', 
+                            wordBreak: 'break-word',
+                            marginTop: '8px',
+                            color: '#0f172a',
+                            maxHeight: '200px',
+                            overflowY: 'auto'
+                          }}>
+                            {product._copy}
+                          </pre>
+                        )}
+                      </div>
+
+                      {/* Send Button */}
+                      <button
+                        className="btn btn-primary"
+                        style={{ width: '100%', opacity: (sendingOffer === product.id || botStatus !== 'connected') ? 0.6 : 1 }}
+                        disabled={sendingOffer === product.id || botStatus !== 'connected'}
+                        onClick={() => handleSendOffer(product)}
+                      >
+                        {sendingOffer === product.id ? '⏳ Enviando...' : '🚀 Enviar para o Grupo'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
         )}
       </div>

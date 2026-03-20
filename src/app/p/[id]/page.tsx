@@ -39,11 +39,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 const ProductCardSm = ({ promotion }: { promotion: Promotion }) => {
   const { product, id } = promotion;
   
-  // Calculate discount and original price fallback
-  const discount = product.discount && product.discount > 0 ? product.discount : (15 + (Math.abs(product.title.length) % 11));
-  const effectiveOriginalPrice = (product.originalPrice && product.originalPrice > product.price) 
-    ? product.originalPrice 
-    : (product.price / (1 - (discount / 100)));
+  const discount = product.discount && product.discount > 0
+    ? product.discount
+    : (product.originalPrice && product.originalPrice > product.price)
+      ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+      : 0; // No fake discount - only real data from scraper
+  const effectiveOriginalPrice = (product.originalPrice && product.originalPrice > product.price)
+    ? product.originalPrice
+    : null; // null = don't show "De:"
 
   const storeLabel = product.platform === 'amazon' ? 'Amazon' : 
                    product.platform === 'shopee' ? 'Shopee' : 
@@ -80,7 +83,7 @@ const ProductCardSm = ({ promotion }: { promotion: Promotion }) => {
         <h3 className="card-title">{product.title}</h3>
         <div className="card-price-row">
            <span className="card-price">R$ {product.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-           {effectiveOriginalPrice > product.price && (
+           {effectiveOriginalPrice && effectiveOriginalPrice > product.price && (
              <span className="card-old-price-sm">R$ {effectiveOriginalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
            )}
            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 256 256"><path d="M200,64V168a8,8,0,0,1-16,0V83.31L69.66,197.66a8,8,0,0,1-11.32-11.32L172.69,72H88a8,8,0,0,1,0-16H192A8,8,0,0,1,200,64Z"></path></svg>

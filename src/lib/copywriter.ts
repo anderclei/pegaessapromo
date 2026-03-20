@@ -208,6 +208,7 @@ export async function generateAllCopies(product: Product, affiliateLink: string,
 
   // If Gemini AI is configured, generate dynamic super-persuasive copies to replace the static ones
   if (config && config.geminiKey) {
+    console.log(`[COPY] Solicitando copy ao Gemini para: ${product.title.substring(0, 40)}`);
     try {
       const genAI = new GoogleGenerativeAI(config.geminiKey);
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
@@ -217,27 +218,40 @@ export async function generateAllCopies(product: Product, affiliateLink: string,
       const oldPriceText = product.originalPrice && product.originalPrice > product.price ? formatPrice(product.originalPrice) : '';
 
       const basePrompt = `
-Você é o copywriter número 1 em vendas de afiliados no Brasil (estilo Pega Essa Promo). 
-Sua missão é criar uma mensagem curta, escandalosamente persuasiva, perfeita para grupos de WhatsApp e com alto poder de conversão.
-O tom de voz deve ser: ${config.copyStyle || 'Engraçado, criativo, usando gírias brasileiras e muitos emojis.'}
-Foque na urgência extrema (ex: 'bug de preço', 'acabando rápido'), e dê clareza total de que o preço despencou.
-Não invente informações se não tiver, mas use gatilhos mentais pesados de 'Promoção Relâmpago'.
+Você é o mestre absoluto do copywriting para grupos de ofertas no WhatsApp (estilo Pega Essa Promo). 
+Sua missão é criar uma mensagem COMPLETA, altamente persuasiva, que pareça ter sido escrita por um humano empolgado com uma oferta absurda.
 
-Produto real: "${product.title}"
-Preço atual com desconto: ${priceText}
-${oldPriceText ? `Preço antigo (antes): ${oldPriceText}` : ''}
-${discount ? `Desconto: ${discount}` : ''}
+🔥 REGRAS DE OURO:
+1. Comece com um impacto visual (emojis de fogo, sirene, raio).
+2. Use gírias de quem ama promoção (Ex: 'BUG?', 'CORRE!', 'MENOR PREÇO HISTÓRICO', 'PELA METADE DO PREÇO').
+3. O tom de voz deve ser: ${config.copyStyle || 'Engraçado, informal, empolgado e muito criativo.'}.
+4. Destaque o benefício do produto e a economia REAL.
+5. Crie uma escassez/urgência genuína (ex: 'Estoque voando', 'Vai acabar em minutos').
+6. Formatação WhatsApp: Use *negrito* para preços e avisos importantes.
+
+📦 DADOS DO PRODUTO:
+- Nome: "${product.title}"
+- Preço Atual: ${priceText}
+${oldPriceText ? `- Preço Original: ${oldPriceText}` : ''}
+${discount ? `- Desconto Calculado: ${discount}` : ''}
+${product.freeShipping ? `- Diferencial: FRETE GRÁTIS! 🚚` : ''}
+
+🔗 CHAMADA PARA AÇÃO (OBRIGATÓRIO):
+Ao final da mensagem, em uma linha separada, inclua exatamente isto:
+👇 COMPRE AGORA:
+${affiliateLink}
 
 IMPORTANTE: 
-1) No final da copy (em uma linha separada), coloque este link EXATO: ${affiliateLink}
-2) Não inclua saudação padrão como "Olá pessoal". Vá direto para o assunto bombástico.
-3) Seja breve (máximo de 120 palavras).
+- Não use saudações como 'Olá' ou 'Tudo bem?'. Vá direto para o "papo de oferta".
+- Não invente características técnicas que não estão nos dados.
+- Mantenha a mensagem curta (máximo 120 palavras).
 `;
 
       const geminiResponse = await model.generateContent(basePrompt);
       const geminiText = geminiResponse.response.text();
-
-      if (geminiText && geminiText.length > 10) {
+      
+      console.log(`[COPY] Gemini respondeu (${geminiText ? geminiText.length : 0} chars)`);
+      if (geminiText && geminiText.length > 20) {
         // Overwrite the WhatsApp copy for all templates just to be sure we use the AI copy whenever a template is chosen
         for (const template of ['aida', 'pas', 'bab']) {
            const waIndex = result[template].findIndex((c: any) => c.platform === 'whatsapp');
@@ -245,10 +259,15 @@ IMPORTANTE:
              result[template][waIndex].body = geminiText;
            }
         }
+        console.log('[COPY] WhatsApp template sobrescrito com sucesso via IA.');
+      } else {
+        console.warn('[COPY] Gemini retornou texto curto ou vazio. Usando fallback estático.');
       }
     } catch (e) {
-      console.error('Falha ao gerar copy pelo Gemini, usando padrão fallback:', e);
+      console.error('[COPY] Erro fatal no call do Gemini:', e);
     }
+  } else {
+    console.warn('[COPY] GeminiKey não encontrada no config. Pulando IA.');
   }
 
   return result;

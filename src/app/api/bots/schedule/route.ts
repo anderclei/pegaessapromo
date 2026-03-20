@@ -46,6 +46,11 @@ export async function POST(request: Request) {
       case 'run-now':
         if (groups) postScheduler.setGroups(groups);
         if (affiliateConfig) postScheduler.setAffiliateConfig(affiliateConfig);
+        // If singleProduct is provided, send only that product (manual offer send)
+        if (body.singleProduct) {
+          const singleLogs = await postScheduler.runSingleProduct(body.singleProduct);
+          return NextResponse.json({ success: true, logs: singleLogs });
+        }
         const logs = await postScheduler.runPostingCycle(true);
         return NextResponse.json({ success: true, logs });
 

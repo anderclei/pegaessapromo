@@ -42,25 +42,23 @@ const shuffleArray = <T,>(array: T[]): T[] => {
   return newArray;
 };
 
-const calculateDiscount = (p: Product) => {
+const getRealDiscount = (p: Product): number => {
   if (p.discount && p.discount > 0) return p.discount;
   if (p.originalPrice && p.originalPrice > p.price) {
     return Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100);
   }
-  // NEW: Fallback for products without discount data
-  return 15 + (Math.abs(p.title.length) % 11); // Deterministic but look varied
+  return 0; // No fake discount - 0 means no real data available
 };
 
 const ProductCardPublic = ({ product, id }: { product: Product; id?: string | null }) => {
   const storeLogo = getStoreLogo(product.platform);
   const href = id && id !== 'null' ? `/p/${id}` : (product.url || '#'); 
   
-  const discount = calculateDiscount(product);
-  
-  let effectiveOriginalPrice = product.originalPrice;
-  if (!effectiveOriginalPrice || effectiveOriginalPrice <= product.price) {
-     effectiveOriginalPrice = Math.round((product.price / (1 - (discount / 100))) * 100) / 100;
-  }
+  // Only show real discount/original price from scraper data
+  const discount = getRealDiscount(product);
+  const originalPrice = (product.originalPrice && product.originalPrice > product.price)
+    ? product.originalPrice
+    : null; // null = don't show "De:" row
 
   return (
     <Link href={href} className="premium-card">
@@ -81,11 +79,11 @@ const ProductCardPublic = ({ product, id }: { product: Product; id?: string | nu
         </div>
         <h3 className="premium-card-title">{product.title}</h3>
         <div className="card-price-container">
-           {effectiveOriginalPrice && (
+           {originalPrice && (
              <div className="card-price-row old">
                 <span className="price-label">De:</span>
                 <span className="premium-card-old-price">
-                   R$ {effectiveOriginalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                   R$ {originalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
              </div>
            )}
@@ -212,7 +210,7 @@ export default function Home() {
   ];
   
   const superDealsRaw = getUniqueDeals(potentialSuper, 8);
-  const superDeals = [...superDealsRaw].sort((a, b) => calculateDiscount(b.product) - calculateDiscount(a.product));
+  const superDeals = [...superDealsRaw].sort((a, b) => getRealDiscount(b.product) - getRealDiscount(a.product));
 
   return (
     <div className="home-container">

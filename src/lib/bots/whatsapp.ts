@@ -30,10 +30,13 @@ class WhatsAppBot {
     this._status = 'connecting';
     this._qrCode = null;
 
+    console.log('💡 DICA: Em modo dev, alterar código reinicia o servidor e desconecta o bot.');
+    
     this.client = new Client({
       authStrategy: new LocalAuth({ dataPath: '.wwebjs_auth' }),
       puppeteer: {
-        headless: true, // headless: true is more stable on Windows than "new" for this lib
+        headless: 'new', // 'new' is the modern standard for puppeteer
+        ignoreDefaultArgs: ['--disable-extensions'],
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -44,17 +47,23 @@ class WhatsAppBot {
           '--disable-extensions',
         ],
       },
-      authTimeoutMs: 60000, // Increase to 60s
-      qrMaxRetries: 10,
+      authTimeoutMs: 120000, // 2 minutes for slower systems
+      qrMaxRetries: 15,
     });
 
     this.client.on('qr', async (qr: string) => {
+      console.log('📱 QR Code recebido, converta no painel admin.');
       try {
         this._qrCode = await QRCode.toDataURL(qr, { width: 300, margin: 2 });
         this._status = 'qr_ready';
       } catch (err) {
         console.error('Erro ao gerar QR code:', err);
       }
+    });
+
+    this.client.on('auth_failure', (msg) => {
+      console.error('❌ Falha na autenticação do WhatsApp:', msg);
+      this._status = 'error';
     });
 
     this.client.on('ready', async () => {
@@ -169,25 +178,19 @@ class WhatsAppBot {
         }
       }
 
-      // Build the affiliate link for this product
+      // 1. Build the affiliate link and the site link first (since ID is now deterministic)
       const affiliateProductLink = buildAffiliateLink(product, config);
-
-      // Save promotion to Supabase so the /p/[id] page works
-      let promotionId = product.id;
-      if (config.siteUrl) {
-        try {
-          promotionId = await savePromotion(product, affiliateProductLink);
-        } catch (e) {
-          console.error('Erro ao salvar promoção no Supabase, usando ID direto:', e);
-        }
-      }
-
-      // Build the site link using the saved promotion ID
-      const siteLink = config.siteUrl
-        ? `${config.siteUrl}/p/${promotionId}`
+      const promotionId = product.id; // Deterministic ID
+      
+      let finalSiteUrl = config.siteUrl || '';
+      if (finalSiteUrl.endsWith('/')) finalSiteUrl = finalSiteUrl.slice(0, -1);
+      
+      const siteLink = finalSiteUrl
+        ? `${finalSiteUrl}/p/${promotionId}`
         : affiliateProductLink;
 
-      // Generate copy (Gemini if key available, fallback to template)
+      // 2. Generate the creative copy BEFORE saving to DB
+      console.log(`[WA] Gerando copy criativa para: ${product.title.substring(0, 30)}...`);
       const copies = await generateAllCopies(product, siteLink, config);
       const templateCopies = copies[template];
       const whatsappCopy = templateCopies.find((c: any) => c.platform === 'whatsapp');
@@ -196,47 +199,69 @@ class WhatsAppBot {
         throw new Error('Template de WhatsApp não encontrado');
       }
 
+      const messageBody = whatsappCopy.body;
+
+      // 3. Save to Supabase (and local cache) - Now includes the generated copy in the product object
+      if (config.siteUrl) {
+        try {
+          const productWithCopy = { ...product, creativeCopy: messageBody };
+          await savePromotion(productWithCopy, affiliateProductLink);
+          console.log(`[WA] Oferta salva no banco com ID: ${promotionId}`);
+        } catch (e) {
+          console.error('[WA] Erro ao salvar no Supabase:', e);
+        }
+      }
+
       // Try to send with image using fetch with browser-like headers
       let sentWithImage = false;
       if (product.image && product.image.startsWith('http')) {
         try {
+          console.log(`🖼️ Baixando imagem: ${product.image.substring(0, 50)}...`);
           const imgResponse = await fetch(product.image, {
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
               'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
               'Accept-Language': 'pt-BR,pt;q=0.9',
-              'Referer': 'https://www.amazon.com.br/',
+              'Referer': 'https://www.google.com/',
             },
           });
+          
           if (imgResponse.ok) {
             const buffer = Buffer.from(await imgResponse.arrayBuffer());
             const contentType = imgResponse.headers.get('content-type') || 'image/jpeg';
             const base64 = buffer.toString('base64');
             const media = new MessageMedia(contentType, base64, 'product.jpg');
-            await this.client.sendMessage(groupId, media, { caption: whatsappCopy.body });
+            await this.client.sendMessage(groupId, media, { caption: messageBody });
             sentWithImage = true;
+            console.log('✅ Enviado com sucesso (com imagem)');
+          } else {
+            console.warn(`⚠️ Falha ao baixar imagem: ${imgResponse.status} ${imgResponse.statusText}`);
           }
         } catch (imgErr) {
-          console.warn('Falha ao baixar imagem via fetch, tentando MessageMedia.fromUrl:', imgErr);
+          console.warn('❌ Erro no download da imagem via fetch:', imgErr);
         }
 
-        // Second attempt: MessageMedia.fromUrl
+        // Second attempt: MessageMedia.fromUrl (if first failed)
         if (!sentWithImage) {
           try {
+            console.log('🔄 Tentativa 2: MessageMedia.fromUrl...');
             const media = await MessageMedia.fromUrl(product.image, { unsafeMime: true });
-            await this.client.sendMessage(groupId, media, { caption: whatsappCopy.body });
+            await this.client.sendMessage(groupId, media, { caption: messageBody });
             sentWithImage = true;
+            console.log('✅ Enviado com sucesso (v2)');
           } catch (urlErr) {
-            console.warn('Falha em MessageMedia.fromUrl, enviando apenas texto:', urlErr);
+            console.warn('❌ Falha total no download da imagem, enviando apenas texto.');
           }
         }
       }
 
       // Final fallback: text only
       if (!sentWithImage) {
-        await this.client.sendMessage(groupId, whatsappCopy.body);
+        await this.client.sendMessage(groupId, messageBody);
+        console.log('✅ Enviado com sucesso (apenas texto)');
       }
 
+      console.log(`[WA] Final check for copy: ${messageBody.substring(0, 50)}...`);
       log.status = 'success';
       log.message = sentWithImage ? 'Mensagem com imagem enviada com sucesso' : 'Mensagem enviada (sem imagem)';
       this._postedProductIds.add(product.id);

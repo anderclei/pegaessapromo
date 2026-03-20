@@ -1,6 +1,10 @@
 import { supabase } from './supabase';
 import { Product, Promotion } from './types';
 
+// Local session cache for promotions to ensure links work during development/testing
+// even if database sync is not immediate or Supabase is not configured.
+const promotionCache = new Map<string, Promotion>();
+
 export function generateId(length: number = 8): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   let result = '';
@@ -11,25 +15,36 @@ export function generateId(length: number = 8): string {
 }
 
 export async function savePromotion(product: Product, affiliateLink: string): Promise<string> {
-  const id = generateId();
+  // Use product.id as the permanent ID for the promotion to ensure 
+  // consistency with the hot_products.json fallback.
+  const id = product.id;
+  const promo: Promotion = {
+    id: id,
+    product: product,
+    affiliateLink: affiliateLink,
+    createdAt: new Date().toISOString(),
+  };
+
+  // 1. Save to local session cache (instant fallback)
+  promotionCache.set(id, promo);
   
   if (!supabase) {
-    console.warn('Supabase not initialized, promotion not saved to DB but ID generated.');
+    console.warn(`[PROM] Supabase missing. ID ${id} cached locally.`);
     return id; 
   }
 
+  // 2. Save to Supabase for persistence
   const { error } = await supabase
     .from('promotions')
-    .insert({
+    .upsert({
       id,
       product,
       affiliate_link: affiliateLink,
-      created_at: new Date().toISOString(),
-    });
+      created_at: promo.createdAt,
+    }, { onConflict: 'id' });
 
   if (error) {
-    console.error('Error saving promotion to Supabase:', error);
-    // Don't throw, just return ID so the link works locally
+    console.error(`[PROM] Error saving ID ${id} to Supabase:`, error);
   }
   
   return id;
@@ -38,7 +53,15 @@ export async function savePromotion(product: Product, affiliateLink: string): Pr
 import { hydrateAmazonPrice } from './scrapers/amazon';
 
 export async function getPromotion(id: string): Promise<Promotion | null> {
-  // 1. Try Supabase first
+  console.log(`[PROM] Buscando promoção ID: ${id}`);
+
+  // 1. Try local session cache (fast & works for manual offers in dev)
+  if (promotionCache.has(id)) {
+    console.log(`[PROM] Encontrada no cache de sessão: ${id}`);
+    return promotionCache.get(id) || null;
+  }
+
+  // 2. Try Supabase
   if (supabase) {
     const { data, error } = await supabase
       .from('promotions')
@@ -47,22 +70,17 @@ export async function getPromotion(id: string): Promise<Promotion | null> {
       .single();
 
     if (!error && data) {
-      const product = data.product;
-      // Removed automatic hydration to maintain price consistency
+      console.log(`[PROM] Encontrada no Supabase: ${id}`);
       return {
         id: data.id,
-        product: product,
+        product: data.product,
         affiliateLink: data.affiliate_link,
         createdAt: data.created_at,
       };
     }
-
-    if (error && error.code !== 'PGRST116') {
-      console.error('Error fetching promotion from Supabase:', error);
-    }
   }
 
-  // 2. Fallback to hot_products.json
+  // 3. Fallback to hot_products.json
   try {
     const fs = require('fs');
     const path = require('path');
@@ -72,13 +90,11 @@ export async function getPromotion(id: string): Promise<Promotion | null> {
       const content = fs.readFileSync(HOT_PRODUCTS_FILE, 'utf-8');
       const hotData = JSON.parse(content);
       
-      // Flatten all categories to find the ID
       const allProducts = Object.values(hotData).flat() as Product[];
       const foundProduct = allProducts.find((p: any) => p && p.id === id);
       
       if (foundProduct) {
-        // We removed automatic hydration here to avoid price contradictions 
-        // between the main grid and detail page. Prices are managed by the sync process.
+        console.log(`[PROM] Encontrada em hot_products.json: ${id}`);
         return {
           id: foundProduct.id,
           product: foundProduct,
@@ -87,11 +103,9 @@ export async function getPromotion(id: string): Promise<Promotion | null> {
         };
       }
     }
-  } catch (e) {
-    console.error('Error reading hot_products for detail page:', e);
-  }
+  } catch (e) {}
 
-
+  console.warn(`[PROM] Promoção NÃO encontrada em lugar nenhum: ${id}`);
   return null;
 }
 

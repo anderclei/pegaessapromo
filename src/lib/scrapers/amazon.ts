@@ -2,8 +2,21 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { Product } from '../types';
 
-function generateId(): string {
-  return Math.random().toString(36).substring(2, 15);
+function generateId(url?: string): string {
+  if (url) {
+    // Try to extract Amazon ASIN (B07... etc) which is usually 10 characters
+    const asinMatch = url.match(/\/dp\/([A-Z0-9]{10})/i) || url.match(/\/gp\/product\/([A-Z0-9]{10})/i);
+    if (asinMatch) return asinMatch[1];
+    
+    // Fallback: use a simple hash of the URL
+    let hash = 0;
+    for (let i = 0; i < url.length; i++) {
+        hash = (hash << 5) - hash + url.charCodeAt(i);
+        hash |= 0;
+    }
+    return 'amz-' + Math.abs(hash).toString(36);
+  }
+  return 'amz-' + Math.random().toString(36).substring(2, 12);
 }
 
 const CATEGORY_MAP: Record<string, string> = {
@@ -158,8 +171,9 @@ export async function scrapeAmazon(category: string = 'todos', type: string = 'b
             sales = Math.floor(reviews * (2 + Math.random() * 3));
           }
 
+          const productUrl = relativeLink?.startsWith('http') ? relativeLink : `https://www.amazon.com.br${relativeLink}`;
           products.push({
-            id: generateId(),
+            id: generateId(productUrl),
             title,
             price: price,
             originalPrice: originalPrice,
@@ -171,7 +185,7 @@ export async function scrapeAmazon(category: string = 'todos', type: string = 'b
 
             category: category,
             platform: 'amazon',
-            url: relativeLink?.startsWith('http') ? relativeLink : `https://www.amazon.com.br${relativeLink}`,
+            url: productUrl,
             freeShipping: true,
             type: type as any,
           });
@@ -248,8 +262,9 @@ export async function scrapeAmazon(category: string = 'todos', type: string = 'b
             sales = Math.floor(reviews * (2 + Math.random() * 3));
           }
 
+          const productUrl = relativeLink?.startsWith('http') ? relativeLink : `https://www.amazon.com.br${relativeLink}`;
           products.push({
-            id: generateId(),
+            id: generateId(productUrl),
             title,
             price,
             originalPrice,
@@ -259,7 +274,7 @@ export async function scrapeAmazon(category: string = 'todos', type: string = 'b
             reviews: reviews,
             category: isLightning ? 'relampago' : 'ofertas',
             platform: 'amazon',
-            url: relativeLink?.startsWith('http') ? relativeLink : `https://www.amazon.com.br${relativeLink}`,
+            url: productUrl,
             freeShipping: true,
             discount,
             type: type as any,

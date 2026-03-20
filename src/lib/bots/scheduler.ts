@@ -1,11 +1,13 @@
 import { whatsappBot } from './whatsapp';
 import { instagramPoster } from './instagram';
-import { ScheduleConfig, PostLog } from './types';
+import { ScheduleConfig, PostLog, GroupCategory } from './types';
 import { Product } from '../types';
 import { scrapeMercadoLivre } from '../scrapers/mercadolivre';
 import { scrapeShopee } from '../scrapers/shopee';
+import { scrapeAmazon } from '../scrapers/amazon';
 import { getSettings } from '../settings';
 import { loadHotProducts, saveHotProducts } from '../promotions';
+import { gitPush } from '../git';
 
 class PostScheduler {
   private _config: ScheduleConfig = {
@@ -72,6 +74,28 @@ class PostScheduler {
     console.log('⏹️ Agendamento parado');
   }
 
+  // Send a single specific product manually (from Ofertas tab)
+  async runSingleProduct(product: Product): Promise<PostLog[]> {
+    if (this._selectedGroups.length === 0) {
+      throw new Error('Nenhum grupo selecionado para envio');
+    }
+    let config = { ...this._affiliateConfig };
+    if (!config.geminiKey) {
+      try {
+        const cloudSettings = await getSettings();
+        if (cloudSettings) config = { ...config, ...cloudSettings };
+      } catch (e) {}
+    }
+    console.log(`📤 Envio manual: ${product.title.substring(0, 50)}...`);
+    const logs = await whatsappBot.sendToMultipleGroups(
+      this._selectedGroups,
+      product,
+      this._config.template,
+      config
+    );
+    return logs;
+  }
+
   async runPostingCycle(force: boolean = false): Promise<PostLog[]> {
     const logs: PostLog[] = [];
 
@@ -107,15 +131,31 @@ class PostScheduler {
         }
       }
 
-      // Fetch fresh products including Amazon
-      const [mlProducts, shopeeProducts] = await Promise.all([
-        scrapeMercadoLivre('todos').catch(() => [] as Product[]),
-        scrapeShopee('todos').catch(() => [] as Product[]),
-      ]);
+      // PHASE 1: Scrape Fresh Products (Lightning Deals + Bestsellers + Synced Cache)
+      let allProducts: Product[] = [];
+      const categories = this._selectedGroups
+        .map(g => whatsappBot.groups.find(group => group.id === g)?.categories)
+        .filter((c): c is GroupCategory[] => !!c)
+        .flat();
+      
+      const uniqueCategories = Array.from(new Set(categories));
+      
+      // Always include real-time Lightning Deals for maximum freshness
+      console.log('⚡ [SYNC] Buscando Ofertas Relâmpago em tempo real...');
+      try {
+        const lightning = await scrapeAmazon('todos', 'lightning');
+        allProducts.push(...lightning);
+      } catch (e) {}
 
-      let allProducts = [...mlProducts, ...shopeeProducts];
+      for (const cat of uniqueCategories) {
+        console.log(`🔍 [SYNC] Buscando ofertas frescas para: ${cat}...`);
+        try {
+          const products = await scrapeAmazon(cat, 'bestsellers');
+          allProducts.push(...products);
+        } catch (e) {}
+      }
 
-      // Add Amazon hot products (from Supabase cache or local file)
+      // Supplement with cached data to avoid empty runs
       let hotData: any = null;
       try {
         hotData = await loadHotProducts();
@@ -124,9 +164,16 @@ class PostScheduler {
           const amzGerais = hotData['ofertas_gerais'] || [];
           allProducts = [...allProducts, ...amzEletronicos, ...amzGerais];
         }
-      } catch (e) {
-        console.error('Erro ao ler hot_products:', e);
-      }
+      } catch (e) {}
+
+      // Supplement with other platforms
+      try {
+        const [ml, shp] = await Promise.all([
+          scrapeMercadoLivre('todos').catch(() => []),
+          scrapeShopee('todos').catch(() => [])
+        ]);
+        allProducts.push(...ml, ...shp);
+      } catch (e) {}
 
       // Filter for "imperdíveis": High discount (15%+) or special deal types
       allProducts = allProducts.filter(p => {
@@ -146,12 +193,50 @@ class PostScheduler {
       });
 
       // Filter already posted
-      allProducts = allProducts.filter(
+      const filteredProducts = allProducts.filter(
         p => !whatsappBot.isProductAlreadyPosted(p.id)
       );
 
       // Take top N (quality over quantity)
-      const productsToPost = allProducts.slice(0, this._config.maxPostsPerRun);
+      const productsToPost = filteredProducts.slice(0, this._config.maxPostsPerRun);
+
+      // PHASE 2: GitHub Push & Vercel Trigger (Publicar no Vitrine)
+      if (productsToPost.length > 0) {
+        console.log('🔄 [2/4] Sincronizando com GitHub...');
+        
+        // Ensure candidates are and hot_products.json is updated locally before push
+        try {
+          const hotData = await loadHotProducts() || {};
+          const currentGerais: Product[] = hotData['ofertas_gerais'] || [];
+          const currentIds = new Set(currentGerais.map((p: Product) => p.id));
+          
+          let added = 0;
+          productsToPost.forEach(p => {
+             if (!currentIds.has(p.id)) {
+                currentGerais.unshift(p);
+                added++;
+             }
+          });
+          
+          if (added > 0) {
+            const updatedHot = { ...hotData, ofertas_gerais: currentGerais.slice(0, 50), lastSync: new Date().toISOString() };
+            await saveHotProducts(updatedHot);
+            
+            // Push to GitHub
+            console.log(`🚀 [3/4] Enviando ${added} ofertas para o repositório para Deploy no Vercel...`);
+            const gitRes = await gitPush(`AutoPost Prep - ${added} ofertas frescas em ${new Date().toLocaleTimeString()}`);
+            
+            if (gitRes.success) {
+               console.log('✅ GitHub sincronizado! Aguardando deploy do Vercel (5-10 minutos)...');
+               // Optionally wait for deploy here, or continue if using Supabase
+               // User specifically wants a delay. Let's wait 3 mins minimum for security.
+               await new Promise(r => setTimeout(r, 180000)); 
+            }
+          }
+        } catch (e) {
+          console.error('[GIT] Falha no push durante agendamento:', e);
+        }
+      }
 
       if (productsToPost.length === 0) {
         console.log('📭 Nenhum produto novo para postar');

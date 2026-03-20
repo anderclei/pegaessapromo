@@ -4,6 +4,7 @@ import { Category } from '@/lib/types';
 import fs from 'fs';
 import path from 'path';
 import { saveHotProducts } from '@/lib/promotions';
+import { gitPush } from '@/lib/git';
 
 // Categories will be loaded dynamically from src/data/categories.json
 const categoriesPath = path.join(process.cwd(), 'src/data/categories.json');
@@ -129,10 +130,18 @@ export async function POST(request: Request) {
       }
     };
 
-    // Save to Cloud (Supabase) + Local File fallback
+    // 3. Save to Cloud (Supabase) + Local File
     await saveHotProducts(finalData);
 
-    console.log(`Sync completed. Saved ${finalData.metadata.totalProducts} products.`);
+    // 4. Publish to GitHub and Vercel (User requested procedure)
+    console.log('[SYNC] Publicando no GitHub para acionar o Deploy no Vercel...');
+    const gitResult = await gitPush(`AutoSync Amazon - ${finalData.metadata.totalProducts} ofertas - ${now.toLocaleString('pt-BR')}`);
+    
+    if (gitResult.success) {
+      console.log('✅ Portál publicado no GitHub e Vercel em andamento.');
+    } else {
+      console.warn('⚠️ Falha ao publicar no GitHub:', gitResult.output);
+    }
 
     return NextResponse.json({ 
       success: true, 
