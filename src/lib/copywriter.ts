@@ -211,7 +211,7 @@ export async function generateAllCopies(product: Product, affiliateLink: string,
     console.log(`[COPY] Solicitando copy ao Gemini para: ${product.title.substring(0, 40)}`);
     try {
       const genAI = new GoogleGenerativeAI(config.geminiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
       const discount = calcDiscount(product);
       const priceText = formatPrice(product.price);
@@ -263,11 +263,17 @@ IMPORTANTE:
       } else {
         console.warn('[COPY] Gemini retornou texto curto ou vazio. Usando fallback estático.');
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('[COPY] Erro fatal no call do Gemini:', e);
+      if (config.strictGemini) {
+        throw new Error('Falha na API da IA: ' + e.message);
+      }
     }
   } else {
     console.warn('[COPY] GeminiKey não encontrada no config. Pulando IA.');
+    if (config && config.strictGemini) {
+      throw new Error('Chave do Gemini ausente na configuração.');
+    }
   }
 
   return result;

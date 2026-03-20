@@ -97,12 +97,16 @@ export async function POST(request: Request) {
               siteLink = affiliateLink; // fallback
             }
 
-            const copies = await import('@/lib/copywriter').then(m => m.generateAllCopies(body.singleProduct, siteLink, mergedConfig));
+            if (!mergedConfig.geminiKey) {
+              return NextResponse.json({ success: false, message: 'Chave do Gemini (AI) não configurada! Vá na aba "Config. Globais" do painel e salve sua chave.' });
+            }
+
+            const copies = await import('@/lib/copywriter').then(m => m.generateAllCopies(body.singleProduct, siteLink, { ...mergedConfig, strictGemini: true }));
             const waBody = copies['aida']?.find((c: any) => c.platform === 'whatsapp')?.body || '';
             
             return NextResponse.json({ success: true, creativeCopy: waBody });
           } catch (e: any) {
-            return NextResponse.json({ success: false, message: 'Falha ao criar copy: ' + e.message });
+            return NextResponse.json({ success: false, message: 'Falha ao processar IA: ' + e.message });
           }
         }
         return NextResponse.json({ success: false, message: 'Sem produto' });
