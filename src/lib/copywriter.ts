@@ -223,15 +223,20 @@ Sua missão é criar uma mensagem COMPLETA, altamente persuasiva, que pareça te
 
 🔥 REGRAS DE OURO:
 1. Comece com um impacto visual (emojis de fogo, sirene, raio).
-2. Use gírias de quem ama promoção (Ex: 'BUG?', 'CORRE!', 'MENOR PREÇO HISTÓRICO', 'PELA METADE DO PREÇO').
+2. Use gírias de quem ama promoção (Ex: 'CORRE!', 'MENOR PREÇO HISTÓRICO').
 3. O tom de voz deve ser: ${config.copyStyle || 'Engraçado, informal, empolgado e muito criativo.'}.
-4. Destaque o benefício do produto e a economia REAL.
+4. Destaque o benefício do produto.
 5. Crie uma escassez/urgência genuína (ex: 'Estoque voando', 'Vai acabar em minutos').
 6. Formatação WhatsApp: Use *negrito* para preços e avisos importantes.
 
-📦 DADOS DO PRODUTO:
+🚨 REGRAS ESTRITAS DE PREÇO (PROIBIDO HALLUCINAR):
+- NUNCA INVENTE UM PREÇO OU DESCONTO FALSO. Você será penalizado se fizer isso!
+- MANTENHA OS CENTAVOS EXATAMENTE COMO INFORMADOS. NUNCA ARREDONDE OS VALORES. (Ex: se for R$ 19,90, escreva R$ 19,90).
+- Se o Preço Original NÃO for informado, não mencione "De R$ X" nem "Y% OFF". Apenas exalte que o Preço Atual está muito barato.
+
+📦 DADOS EXATOS DO PRODUTO A SEREM USADOS:
 - Nome: "${product.title}"
-- Preço Atual: ${priceText}
+- Preço Atual Exato: ${priceText}
 ${oldPriceText ? `- Preço Original: ${oldPriceText}` : ''}
 ${discount ? `- Desconto Calculado: ${discount}` : ''}
 ${product.freeShipping ? `- Diferencial: FRETE GRÁTIS! 🚚` : ''}
@@ -242,9 +247,10 @@ Ao final da mensagem, em uma linha separada, inclua exatamente isto:
 ${affiliateLink}
 
 IMPORTANTE: 
-- Não use saudações como 'Olá' ou 'Tudo bem?'. Vá direto para o "papo de oferta".
-- Não invente características técnicas que não estão nos dados.
+- Não use saudações como 'Olá'. Vá direto para o "papo de oferta".
+- Não invente características ou preços que não foram dados acima.
 - Mantenha a mensagem curta (máximo 120 palavras).
+- OBRIGATÓRIO: Use quebras de linha DUPLAS (parágrafos curtos) para facilitar a leitura no celular. Não envie blocos gigantes de texto!
 `;
 
       const geminiResponse = await model.generateContent(basePrompt);

@@ -435,16 +435,8 @@ export async function hydrateAmazonPrice(product: Product): Promise<Product> {
        originalPriceValue = cleanPriceStr(pText);
     }
     
-    const bodyText = $('body').text().replace(/\s+/g, ' ');
-
-    // Fallback: If original price still not found, search in the body text for "ou R$ ... em até" or similar
-    if (originalPriceValue === 0) {
-      const instMatch = bodyText.match(/ou\s*R\$\s*([\d.,]+)\s*em/i) || 
-                       bodyText.match(/por\s*R\$\s*([\d.,]+)\s*em/i);
-      if (instMatch) {
-        originalPriceValue = cleanPriceStr(instMatch[1]);
-      }
-    }
+    // Removing the flawed fallback that captured installment prices as original price.
+    // Real original price should always come from strike-through or 'De:' selectors.
 
     // New: Attempt to find the discount percentage directly if available (e.g., "-24%")
     let directDiscount = 0;
