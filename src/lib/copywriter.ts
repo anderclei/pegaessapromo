@@ -211,7 +211,7 @@ export async function generateAllCopies(product: Product, affiliateLink: string,
     console.log(`[COPY] Solicitando copy ao Gemini para: ${product.title.substring(0, 40)}`);
     try {
       const genAI = new GoogleGenerativeAI(config.geminiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
       const discount = calcDiscount(product);
       const priceText = formatPrice(product.price);
@@ -266,7 +266,17 @@ IMPORTANTE:
     } catch (e: any) {
       console.error('[COPY] Erro fatal no call do Gemini:', e);
       if (config.strictGemini) {
-        throw new Error('Falha na API da IA: ' + e.message);
+        let availableModels = "";
+        try {
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${config.geminiKey}`);
+          const data = await res.json();
+          if (data && data.models) {
+             const models = data.models.map((m: any) => m.name.replace('models/', ''));
+             availableModels = "\\nModelos liberados na sua conta: " + models.join(', ');
+          }
+        } catch (fetchErr) {}
+        
+        throw new Error('Falha na API da IA: ' + e.message + availableModels);
       }
     }
   } else {
