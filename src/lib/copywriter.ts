@@ -271,6 +271,9 @@ IMPORTANTE:
       }
     } catch (e: any) {
       console.error('[COPY] Erro fatal no call do Gemini:', e);
+      if (e.status === 429 || (e.message && e.message.includes('429'))) {
+        throw new Error('⚠️ O limite grátis do Google (IA) foi atingido temporariamente (Muitos pedidos seguidos). Aguarde 1 minutinho e tente de novo!');
+      }
       if (config.strictGemini) {
         let availableModels = "";
         try {

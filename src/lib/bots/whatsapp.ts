@@ -207,17 +207,22 @@ class WhatsAppBot {
         ? `${finalSiteUrl}/p/${promotionId}`
         : affiliateProductLink;
 
-      // 2. Generate the creative copy BEFORE saving to DB
-      console.log(`[WA] Gerando copy criativa para: ${product.title.substring(0, 30)}...`);
-      const copies = await generateAllCopies(product, siteLink, config);
-      const templateCopies = copies[template];
-      const whatsappCopy = templateCopies.find((c: any) => c.platform === 'whatsapp');
+      // 2. Generate or use pre-generated creative copy BEFORE saving to DB
+      let messageBody = '';
+      if (product.creativeCopy) {
+        console.log(`[WA] Usando copy criativa customizada/pré-gerada para: ${product.title.substring(0, 30)}...`);
+        messageBody = product.creativeCopy;
+      } else {
+        console.log(`[WA] Gerando copy criativa via IA/estática para: ${product.title.substring(0, 30)}...`);
+        const copies = await generateAllCopies(product, siteLink, config);
+        const templateCopies = copies[template];
+        const whatsappCopy = templateCopies.find((c: any) => c.platform === 'whatsapp');
 
-      if (!whatsappCopy) {
-        throw new Error('Template de WhatsApp não encontrado');
+        if (!whatsappCopy) {
+          throw new Error('Template de WhatsApp não encontrado');
+        }
+        messageBody = whatsappCopy.body;
       }
-
-      const messageBody = whatsappCopy.body;
 
       // 3. Save to Supabase (and local cache) - Now includes the generated copy in the product object
       if (config.siteUrl) {

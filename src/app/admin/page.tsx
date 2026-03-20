@@ -1446,31 +1446,45 @@ export default function AdminDashboard() {
                               </div>
                             )}
 
-                            <pre style={{ 
+                            <div style={{ 
                               background: '#f8fafc', 
                               border: '1px dashed #cbd5e1', 
                               borderRadius: '8px', 
                               padding: '10px', 
                               fontSize: '0.75rem', 
-                              whiteSpace: 'pre-wrap', 
-                              wordBreak: 'break-word',
                               color: '#475569',
-                              maxHeight: '200px',
-                              overflowY: 'auto'
                             }}>
-                              {product.creativeCopy || product._copy}
-                            </pre>
+                              {product.creativeCopy ? (
+                                <textarea
+                                  value={product.creativeCopy}
+                                  onChange={(e) => {
+                                    setOffers(prev => prev.map(o => o.id === product.id ? { ...o, creativeCopy: e.target.value } : o));
+                                  }}
+                                  style={{
+                                    width: '100%', minHeight: '120px', fontSize: '0.8rem', 
+                                    padding: '8px', border: '1px solid #e2e8f0', borderRadius: '4px', resize: 'vertical',
+                                    fontFamily: 'inherit', lineHeight: 1.4
+                                  }}
+                                />
+                              ) : (
+                                <pre style={{
+                                   whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '0.8rem',
+                                   lineHeight: 1.4, margin: 0,
+                                   maxHeight: '200px', overflowY: 'auto'
+                                }}>
+                                  {product._copy}
+                                </pre>
+                              )}
+                            </div>
 
-                            {!product.creativeCopy && (
-                              <button
-                                className="btn btn-sm"
-                                style={{ marginTop: '8px', width: '100%', backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1' }}
-                                disabled={generatingCopyFor === product.id}
-                                onClick={() => handleGenerateCopyOnly(product)}
-                              >
-                                {generatingCopyFor === product.id ? '🧠 Pensando...' : '✨ Gerar Copy Criativa Agora'}
-                              </button>
-                            )}
+                            <button
+                              className="btn btn-sm"
+                              style={{ marginTop: '8px', width: '100%', backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1' }}
+                              disabled={generatingCopyFor === product.id}
+                              onClick={() => handleGenerateCopyOnly(product)}
+                            >
+                              {generatingCopyFor === product.id ? '🧠 Pensando...' : (product.creativeCopy ? '🔄 Recriar Copy Criativa' : '✨ Gerar Copy Criativa Agora')}
+                            </button>
                           </div>
                         )}
                       </div>
