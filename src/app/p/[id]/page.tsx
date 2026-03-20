@@ -184,6 +184,24 @@ export default async function Page({ params }: Props) {
                            })()}
                         </div>
 
+                        {product.creativeCopy && (
+                          <div className="creative-copy-box" style={{ 
+                            marginTop: '1.5rem', 
+                            padding: '1rem', 
+                            backgroundColor: '#f8fafc', 
+                            border: '1px solid #e2e8f0', 
+                            borderRadius: '8px',
+                            fontSize: '0.85rem',
+                            whiteSpace: 'pre-wrap',
+                            color: '#334155'
+                          }}>
+                            <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#0f172a', display: 'flex', justifyContent: 'space-between' }}>
+                              <span>📝 Copy Criativa da IA:</span>
+                            </div>
+                            {product.creativeCopy}
+                          </div>
+                        )}
+
                         <a href={affiliateLink} target="_blank" className="btn-buy-now">
                            Comprar na {store.label}
                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 256 256"><path d="M200,64V168a8,8,0,0,1-16,0V83.31L69.66,197.66a8,8,0,0,1-11.32-11.32L172.69,72H88a8,8,0,0,1,0-16H192A8,8,0,0,1,200,64Z"></path></svg>

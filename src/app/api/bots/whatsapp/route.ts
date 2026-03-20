@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { whatsappBot } from '@/lib/bots/whatsapp';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import path from 'path';
+import fs from 'fs';
 
 const execAsync = promisify(exec);
 
@@ -47,6 +49,27 @@ export async function POST(request: Request) {
         return NextResponse.json({
           success: true,
           message: 'Bot desconectado',
+          state: whatsappBot.getState(),
+        });
+
+      case 'clear-session':
+        console.log('[Bot] Limpando sessão (excluindo .wwebjs_auth)...');
+        await whatsappBot.disconnect().catch(() => {});
+        await killChromeProcesses();
+        try {
+          const authPath = path.join(process.cwd(), '.wwebjs_auth');
+          if (fs.existsSync(authPath)) {
+            await fs.promises.rm(authPath, { recursive: true, force: true });
+          }
+        } catch (err: any) {
+          console.error('[Bot] Erro ao excluir .wwebjs_auth:', err);
+        }
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        await whatsappBot.initialize();
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        return NextResponse.json({
+          success: true,
+          message: 'Sessão limpa e bot reiniciado. Aguarde o QR Code.',
           state: whatsappBot.getState(),
         });
 

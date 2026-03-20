@@ -336,6 +336,31 @@ export default function AdminDashboard() {
     setForceRestarting(false);
   };
 
+  const handleClearSession = async () => {
+    if (!confirm('Isso vai resetar seu WhatsApp no bot e você precisará ler o QR Code de novo. Confirmar?')) return;
+    setForceRestarting(true);
+    setBotStatus('connecting');
+    setQrCode(null);
+    try {
+      const res = await fetch('/api/bots/whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'clear-session' })
+      });
+      const data = await res.json();
+      if (data.state) {
+        setBotStatus(data.state.status);
+        setQrCode(data.state.qrCode);
+      }
+      alert(data.message || 'Sessão limpa.');
+    } catch (e) {
+      setBotStatus('error');
+      console.error(e);
+      alert('Erro ao tentar limpar a sessão.');
+    }
+    setForceRestarting(false);
+  };
+
   const syncBotState = useCallback(async () => {
     try {
       const res = await fetch('/api/bots/whatsapp');
@@ -747,7 +772,7 @@ export default function AdminDashboard() {
                     </p>
                   </div>
                 )}
-                
+
                 {botStatus === 'error' && (
                   <div style={{ padding: '2rem' }}>
                     <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>❌</div>
@@ -761,11 +786,19 @@ export default function AdminDashboard() {
                         onClick={handleForceRestart}
                         disabled={forceRestarting}
                       >
-                        {forceRestarting ? '⏳ Reiniciando...' : '🔧 Forçar Reinício (Matar Processo)'}
+                        {forceRestarting ? '⏳ Reiniciando...' : '🔧 Forçar Reinício'}
+                      </button>
+                      <button
+                        className="btn btn-secondary"
+                        style={{ backgroundColor: '#ef4444', color: 'white', border: 'none' }}
+                        onClick={handleClearSession}
+                        disabled={forceRestarting}
+                      >
+                        {forceRestarting ? '⏳ Limpando...' : '🗑️ Limpar Sessão e Resetar'}
                       </button>
                     </div>
                     <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '1rem' }}>
-                      "Forçar Reinício" encerra qualquer processo Chrome travado e reinicia do zero.
+                      Use "Forçar Reinício" se ficou travado. Use "Limpar Sessão e Resetar" apenas se o WhatsApp não quiser conectar de jeito nenhum.
                     </p>
                   </div>
                 )}
