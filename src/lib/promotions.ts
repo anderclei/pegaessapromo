@@ -112,9 +112,13 @@ export async function getPromotion(id: string): Promise<Promotion | null> {
 export async function getLatestPromotions(limit: number = 20): Promise<Promotion[]> {
   if (!supabase) return [];
   
+  const twoDaysAgo = new Date();
+  twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+  
   const { data, error } = await supabase
     .from('promotions')
     .select('*')
+    .gte('created_at', twoDaysAgo.toISOString())
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -138,11 +142,15 @@ export async function getRelatedPromotions(category: string, excludeId: string, 
   // 1. Try Supabase for manual products in SAME category
   if (supabase) {
     try {
+      const twoDaysAgo = new Date();
+      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+      
       const { data, error } = await supabase
         .from('promotions')
         .select('*')
         .eq('product->>category', category)
         .neq('id', excludeId)
+        .gte('created_at', twoDaysAgo.toISOString())
         .order('created_at', { ascending: false })
         .limit(limit);
 
