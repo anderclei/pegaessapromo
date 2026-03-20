@@ -8,6 +8,8 @@ export interface AffiliateConfig {
   amazonAccessKey: string;
   amazonSecretKey: string;
   geminiKey?: string;
+  aiProvider?: 'gemini' | 'ollama';
+  ollamaModel?: string;
   siteUrl?: string;
   copyStyle?: string;
   schedulerEnabled?: boolean;

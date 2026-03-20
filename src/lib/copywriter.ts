@@ -253,16 +253,45 @@ IMPORTANTE:
 - OBRIGATÓRIO: Use quebras de linha DUPLAS (parágrafos curtos) para facilitar a leitura no celular. Não envie blocos gigantes de texto!
 `;
 
-      const geminiResponse = await model.generateContent(basePrompt);
-      const geminiText = geminiResponse.response.text();
+      let aiText = '';
       
-      console.log(`[COPY] Gemini respondeu (${geminiText ? geminiText.length : 0} chars)`);
-      if (geminiText && geminiText.length > 20) {
+      if (config.aiProvider === 'ollama') {
+        const ollamaModel = config.ollamaModel || 'llama3.2';
+        console.log(`[COPY] Chamando Ollama localmente (Modelo: ${ollamaModel})...`);
+        
+        try {
+          const res = await fetch('http://127.0.0.1:11434/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: ollamaModel,
+              prompt: basePrompt,
+              stream: false
+            })
+          });
+          
+          if (!res.ok) {
+            throw new Error(`Erro Ollama: ${res.statusText}`);
+          }
+          const data = await res.json();
+          aiText = data.response;
+        } catch (err: any) {
+          console.error('[COPY] Falha ao conectar no Ollama:', err.message);
+          throw new Error(`⚠️ Não foi possível conectar ao Ollama! Verifique se ele está rodando na sua máquina e se o modelo '${ollamaModel}' está baixado.`);
+        }
+      } else {
+        // Fallback or explicit Gemini
+        const geminiResponse = await model.generateContent(basePrompt);
+        aiText = geminiResponse.response.text();
+      }
+      
+      console.log(`[COPY] IA respondeu (${aiText ? aiText.length : 0} chars)`);
+      if (aiText && aiText.length > 20) {
         // Overwrite the WhatsApp copy for all templates just to be sure we use the AI copy whenever a template is chosen
         for (const template of ['aida', 'pas', 'bab']) {
            const waIndex = result[template].findIndex((c: any) => c.platform === 'whatsapp');
            if (waIndex !== -1) {
-             result[template][waIndex].body = geminiText;
+             result[template][waIndex].body = aiText;
            }
         }
         console.log('[COPY] WhatsApp template sobrescrito com sucesso via IA.');

@@ -678,14 +678,42 @@ export default function AdminDashboard() {
                  A chave do Gemini é usada para gerar as copys altamente persuasivas para seus grupos automaticamente.
                </p>
                <div className="form-field">
-                  <label style={{ color: '#333', fontWeight: 'bold' }}>Google Gemini API Key</label>
-                  <input 
-                    type="password" placeholder="Cole sua chave do AI Studio aqui"
-                    style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
-                    value={affiliateConfig.geminiKey}
-                    onChange={e => setAffiliateConfig({...affiliateConfig, geminiKey: e.target.value})}
-                  />
+                  <label style={{ color: '#333', fontWeight: 'bold' }}>Provedor de IA (Cérebro do Robô)</label>
+                  <select
+                    style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc', padding: '10px', borderRadius: '4px', marginBottom: '8px' }}
+                    value={affiliateConfig.aiProvider || 'gemini'}
+                    onChange={e => setAffiliateConfig({...affiliateConfig, aiProvider: e.target.value as 'gemini' | 'ollama'})}
+                  >
+                    <option value="gemini">Google Gemini (Grátis / Tem limites de uso)</option>
+                    <option value="ollama">Ollama (Local / Roda na sua placa de vídeo / Sem limites)</option>
+                  </select>
                </div>
+               
+               {(!affiliateConfig.aiProvider || affiliateConfig.aiProvider === 'gemini') ? (
+                 <div className="form-field">
+                    <label style={{ color: '#333', fontWeight: 'bold' }}>Google Gemini API Key</label>
+                    <input 
+                      type="password" placeholder="Cole sua chave do AI Studio aqui"
+                      style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
+                      value={affiliateConfig.geminiKey}
+                      onChange={e => setAffiliateConfig({...affiliateConfig, geminiKey: e.target.value})}
+                    />
+                 </div>
+               ) : (
+                 <div className="form-field" style={{ background: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
+                    <label style={{ color: '#333', fontWeight: 'bold' }}>Nome do Modelo no Ollama</label>
+                    <p style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '8px' }}>
+                      Digite exatamente como você baixou no Ollama (ex: <code>llama3.2</code>, <code>phi3</code>, <code>mistral</code>)
+                    </p>
+                    <input 
+                      type="text" placeholder="ex: llama3.2"
+                      style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
+                      value={affiliateConfig.ollamaModel || ''}
+                      onChange={e => setAffiliateConfig({...affiliateConfig, ollamaModel: e.target.value})}
+                    />
+                 </div>
+               )}
+               
                <div className="form-field">
                   <label style={{ color: '#333', fontWeight: 'bold' }}>Estilo das Copys (IA)</label>
                   <textarea 
