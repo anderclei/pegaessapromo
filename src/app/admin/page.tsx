@@ -28,6 +28,7 @@ export default function AdminDashboard() {
   const [mounted, setMounted] = useState(false);
   const [activeBotTab, setActiveBotTab] = useState<'connection' | 'groups' | 'logs'>('connection');
   const [loadingGroups, setLoadingGroups] = useState(false);
+  const [forceRestarting, setForceRestarting] = useState(false);
   
   // Bot Schedule Config State
   const [intervalVal, setIntervalVal] = useState(60);
@@ -220,8 +221,15 @@ export default function AdminDashboard() {
     try {
       const res = await fetch('/api/amazon?category=todos');
       const data = await res.json();
+      
+      const uniqueIds = new Set();
       const products = (data.products || [])
-        .filter((p: any) => p.price > 0)
+        .filter((p: any) => {
+          if (!p.id || p.price <= 0) return false;
+          if (uniqueIds.has(p.id)) return false;
+          uniqueIds.add(p.id);
+          return true;
+        })
         .sort((a: any, b: any) => (b.discount || 0) - (a.discount || 0))
         .slice(0, 30)
         .map((p: any) => {
@@ -301,6 +309,31 @@ export default function AdminDashboard() {
       setBotStatus('disconnected');
       setQrCode(null);
     } catch (e) { console.error(e); }
+  };
+
+  const handleForceRestart = async () => {
+    if (!confirm('Isso vai encerrar o processo do Chrome/Puppeteer e reiniciar o bot. Continuar?')) return;
+    setForceRestarting(true);
+    setBotStatus('connecting');
+    setQrCode(null);
+    try {
+      const res = await fetch('/api/bots/whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'force-restart' })
+      });
+      const data = await res.json();
+      if (data.state) {
+        setBotStatus(data.state.status);
+        setQrCode(data.state.qrCode);
+      }
+      alert(data.message || 'Bot reiniciado! Aguarde o QR Code aparecer.');
+    } catch (e) {
+      setBotStatus('error');
+      console.error(e);
+      alert('Erro ao tentar reiniciar o bot.');
+    }
+    setForceRestarting(false);
   };
 
   const syncBotState = useCallback(async () => {
@@ -681,14 +714,37 @@ export default function AdminDashboard() {
                     <h3>Conectar WhatsApp</h3>
                     <p style={{ color: '#64748b', marginBottom: '2rem' }}>Inicie o robô para gerar o QR Code de conexão.</p>
                     <button className="btn btn-primary" onClick={handleStartBot}>🚀 Iniciar Robô de Vendas</button>
+                    <div style={{ marginTop: '1rem' }}>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={handleForceRestart}
+                        disabled={forceRestarting}
+                        title="Encerra processos travados do Chrome e reinicia o bot do zero"
+                      >
+                        {forceRestarting ? '⏳ Reiniciando...' : '🔧 Forçar Reinício (Processo Travado?)'}
+                      </button>
+                    </div>
                   </>
                 )}
 
                 {botStatus === 'connecting' && (
                   <div style={{ padding: '2rem' }}>
-                    <div className="admin-loading">Iniciando servidor do bot...</div>
+                    <div className="admin-loading">{forceRestarting ? 'Reiniciando processo do bot...' : 'Iniciando servidor do bot...'}</div>
                     <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '1rem' }}>Isso pode levar até 30 segundos na primeira vez.</p>
-                    <button className="btn btn-sm" style={{ marginTop: '1rem' }} onClick={syncBotState}>🔄 Verificar Status Manualmente</button>
+                    <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '1.5rem', flexWrap: 'wrap' }}>
+                      <button className="btn btn-sm" onClick={syncBotState}>🔄 Verificar Status</button>
+                      <button
+                        className="btn btn-sm"
+                        style={{ backgroundColor: '#f97316', color: 'white', border: 'none' }}
+                        onClick={handleForceRestart}
+                        disabled={forceRestarting}
+                      >
+                        {forceRestarting ? '⏳ Aguarde...' : '🔧 Forçar Reinício'}
+                      </button>
+                    </div>
+                    <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.75rem' }}>
+                      💡 Se ficar travado por mais de 1 minuto, use "Forçar Reinício" para matar o processo Chrome e tentar novamente.
+                    </p>
                   </div>
                 )}
                 
@@ -696,25 +752,50 @@ export default function AdminDashboard() {
                   <div style={{ padding: '2rem' }}>
                     <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>❌</div>
                     <h3>Erro ao Iniciar</h3>
-                    <p style={{ color: '#64748b', marginBottom: '2rem' }}>Houve um problema ao carregar o WhatsApp. Tente novamente.</p>
-                    <button className="btn btn-primary" onClick={handleStartBot}>Tentar Novamente</button>
+                    <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>Houve um problema ao carregar o WhatsApp. Tente novamente.</p>
+                    <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                      <button className="btn btn-primary" onClick={handleStartBot}>▶️ Tentar Novamente</button>
+                      <button
+                        className="btn btn-secondary"
+                        style={{ backgroundColor: '#f97316', color: 'white', border: 'none' }}
+                        onClick={handleForceRestart}
+                        disabled={forceRestarting}
+                      >
+                        {forceRestarting ? '⏳ Reiniciando...' : '🔧 Forçar Reinício (Matar Processo)'}
+                      </button>
+                    </div>
+                    <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '1rem' }}>
+                      "Forçar Reinício" encerra qualquer processo Chrome travado e reinicia do zero.
+                    </p>
                   </div>
                 )}
 
                 {botStatus === 'qr_ready' && (
-                  <div style={{ background: 'white', padding: '2rem', borderRadius: '15px', display: 'inline-block', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}>
-                    <h3 style={{ marginBottom: '1rem', color: '#000' }}>Escaneie o QR Code</h3>
-                    {qrCode ? (
-                      <>
-                        <img src={qrCode} alt="WhatsApp QR Code" style={{ width: '250px', height: '250px' }} />
-                        <p style={{ marginTop: '1rem', fontSize: '0.85rem', color: '#666' }}>Abra o WhatsApp {'>'} Aparelhos Conectados</p>
-                      </>
-                    ) : (
-                      <div style={{ padding: '2rem' }}>
-                        <div className="admin-loading">Gerando QR Code...</div>
-                        <button className="btn btn-sm" style={{ marginTop: '1rem' }} onClick={syncBotState}>🔄 Forçar Atualização</button>
-                      </div>
-                    )}
+                  <div>
+                    <div style={{ background: 'white', padding: '2rem', borderRadius: '15px', display: 'inline-block', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', marginBottom: '1.5rem' }}>
+                      <h3 style={{ marginBottom: '1rem', color: '#000' }}>Escaneie o QR Code</h3>
+                      {qrCode ? (
+                        <>
+                          <img src={qrCode} alt="WhatsApp QR Code" style={{ width: '250px', height: '250px' }} />
+                          <p style={{ marginTop: '1rem', fontSize: '0.85rem', color: '#666' }}>Abra o WhatsApp {'>'} Aparelhos Conectados</p>
+                        </>
+                      ) : (
+                        <div style={{ padding: '2rem' }}>
+                          <div className="admin-loading">Gerando QR Code...</div>
+                          <button className="btn btn-sm" style={{ marginTop: '1rem' }} onClick={syncBotState}>🔄 Forçar Atualização</button>
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <button
+                        className="btn btn-sm"
+                        style={{ backgroundColor: '#f97316', color: 'white', border: 'none' }}
+                        onClick={handleForceRestart}
+                        disabled={forceRestarting}
+                      >
+                        {forceRestarting ? '⏳ Reiniciando...' : '🔄 QR Code expirou? Forçar Reinício'}
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -723,7 +804,17 @@ export default function AdminDashboard() {
                       <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>✅</div>
                       <h3 style={{ color: '#000' }}>Robô Conectado e Ativo!</h3>
                       <p style={{ color: '#64748b', marginBottom: '2rem' }}>O sistema está pronto para monitorar as melhores ofertas da Amazon.</p>
-                      <button className="btn btn-delete" style={{ padding: '10px 20px' }} onClick={handleStopBot}>Desconectar Aparelho</button>
+                      <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                        <button className="btn btn-delete" style={{ padding: '10px 20px' }} onClick={handleStopBot}>🔌 Desconectar Aparelho</button>
+                        <button
+                          className="btn btn-secondary"
+                          style={{ padding: '10px 20px', backgroundColor: '#f97316', color: 'white', border: 'none' }}
+                          onClick={handleForceRestart}
+                          disabled={forceRestarting}
+                        >
+                          {forceRestarting ? '⏳ Reiniciando...' : '🔧 Forçar Reinício'}
+                        </button>
+                      </div>
                    </div>
                 )}
               </div>

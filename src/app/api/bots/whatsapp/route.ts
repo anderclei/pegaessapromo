@@ -1,5 +1,25 @@
 import { NextResponse } from 'next/server';
 import { whatsappBot } from '@/lib/bots/whatsapp';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
+
+async function killChromeProcesses(): Promise<{ killed: number; error?: string }> {
+  try {
+    // Kill any orphaned chrome/chromium processes started by puppeteer
+    if (process.platform === 'win32') {
+      // On Windows, kill chrome processes that are running headlessly
+      await execAsync('taskkill /F /IM chrome.exe /T').catch(() => {});
+    } else {
+      await execAsync("pkill -f 'chrome.*--headless' || true").catch(() => {});
+      await execAsync("pkill -f 'chromium.*--headless' || true").catch(() => {});
+    }
+    return { killed: 1 };
+  } catch (e) {
+    return { killed: 0, error: e instanceof Error ? e.message : 'Erro desconhecido' };
+  }
+}
 
 export async function GET() {
   const state = whatsappBot.getState();
@@ -27,6 +47,39 @@ export async function POST(request: Request) {
         return NextResponse.json({
           success: true,
           message: 'Bot desconectado',
+          state: whatsappBot.getState(),
+        });
+
+      case 'kill-process':
+        // Only kill processes, do not restart
+        await whatsappBot.disconnect().catch(() => {});
+        const killResult = await killChromeProcesses();
+        return NextResponse.json({
+          success: true,
+          message: `Processo encerrado. ${killResult.error ? 'Aviso: ' + killResult.error : ''}`,
+          state: whatsappBot.getState(),
+        });
+
+      case 'force-restart':
+        // Step 1: Disconnect the bot gracefully
+        console.log('[Bot] Forçando reinício — desconectando...');
+        await whatsappBot.disconnect().catch(() => {});
+
+        // Step 2: Kill any zombie Chrome processes
+        console.log('[Bot] Matando processos Chrome órfãos...');
+        await killChromeProcesses();
+
+        // Step 3: Short pause before reinitializing
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        // Step 4: Re-initialize the bot
+        console.log('[Bot] Reiniciando bot...');
+        await whatsappBot.initialize();
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        return NextResponse.json({
+          success: true,
+          message: 'Bot reiniciado com sucesso. Aguarde o QR Code.',
           state: whatsappBot.getState(),
         });
 

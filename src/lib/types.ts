@@ -16,6 +16,7 @@ export interface Product {
   type?: 'bestsellers' | 'lightning' | 'super';
   listType?: 'bestsellers' | 'new-releases' | 'movers-and-shakers' | 'most-wished-for';
   createdAt?: string;
+  creativeCopy?: string;
 }
 
 export interface AffiliateConfig {

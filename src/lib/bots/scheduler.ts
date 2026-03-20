@@ -5,6 +5,7 @@ import { Product } from '../types';
 import { scrapeMercadoLivre } from '../scrapers/mercadolivre';
 import { scrapeShopee } from '../scrapers/shopee';
 import { scrapeAmazon } from '../scrapers/amazon';
+import { generateAllCopies } from '../copywriter';
 import { getSettings } from '../settings';
 import { loadHotProducts, saveHotProducts } from '../promotions';
 import { gitPush } from '../git';
@@ -204,14 +205,40 @@ class PostScheduler {
       if (productsToPost.length > 0) {
         console.log('🔄 [2/4] Sincronizando com GitHub...');
         
-        // Ensure candidates are and hot_products.json is updated locally before push
+        // Use current config including geminiKey
+        let config = { ...this._affiliateConfig };
+        if (!config.geminiKey) {
+          try {
+            const settings = await getSettings();
+            if (settings) config = { ...config, ...settings };
+          } catch (e) {}
+        }
+
+        // Ensure candidates have creative copy and are included in hot_products.json locally before push
         try {
           const hotData = await loadHotProducts() || {};
           const currentGerais: Product[] = hotData['ofertas_gerais'] || [];
           const currentIds = new Set(currentGerais.map((p: Product) => p.id));
           
           let added = 0;
-          productsToPost.forEach(p => {
+          const productsWithCopies: Product[] = [];
+
+          // Pre-generate copies for these specific products to be posted
+          console.log(`🧠 Gerando copies para ${productsToPost.length} produtos do ciclo...`);
+          for (const p of productsToPost) {
+             const finalSiteUrl = config.siteUrl?.replace(/\/$/, '') || '';
+             const siteLink = finalSiteUrl ? `${finalSiteUrl}/p/${p.id}` : p.url;
+             
+             try {
+                const copies = await generateAllCopies(p, siteLink, config);
+                const waBody = copies[this._config.template].find((c: any) => c.platform === 'whatsapp')?.body;
+                productsWithCopies.push({ ...p, creativeCopy: waBody });
+             } catch (e) {
+                productsWithCopies.push(p);
+             }
+          }
+          
+          productsWithCopies.forEach(p => {
              if (!currentIds.has(p.id)) {
                 currentGerais.unshift(p);
                 added++;
@@ -223,13 +250,11 @@ class PostScheduler {
             await saveHotProducts(updatedHot);
             
             // Push to GitHub
-            console.log(`🚀 [3/4] Enviando ${added} ofertas para o repositório para Deploy no Vercel...`);
-            const gitRes = await gitPush(`AutoPost Prep - ${added} ofertas frescas em ${new Date().toLocaleTimeString()}`);
+            console.log(`🚀 [3/4] Enviando ${added} ofertas COM COPY para o repositório...`);
+            const gitRes = await gitPush(`AutoPost Prep (Com Copy) - ${added} ofertas - ${new Date().toLocaleTimeString()}`);
             
             if (gitRes.success) {
-               console.log('✅ GitHub sincronizado! Aguardando deploy do Vercel (5-10 minutos)...');
-               // Optionally wait for deploy here, or continue if using Supabase
-               // User specifically wants a delay. Let's wait 3 mins minimum for security.
+               console.log('✅ GitHub sincronizado! Aguardando deploy do Vercel (3-5 minutos)...');
                await new Promise(r => setTimeout(r, 180000)); 
             }
           }

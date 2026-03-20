@@ -35,7 +35,8 @@ class WhatsAppBot {
     this.client = new Client({
       authStrategy: new LocalAuth({ dataPath: '.wwebjs_auth' }),
       puppeteer: {
-        headless: 'new', // 'new' is the modern standard for puppeteer
+        headless: 'new',
+        executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
         ignoreDefaultArgs: ['--disable-extensions'],
         args: [
           '--no-sandbox',
