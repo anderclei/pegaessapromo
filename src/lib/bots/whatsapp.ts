@@ -348,5 +348,11 @@ class WhatsAppBot {
   }
 }
 
-// Singleton
-export const whatsappBot = new WhatsAppBot();
+// Em vez de instanciar solto, usamos o globalThis para forçar o Next.js a manter
+// exatamente a MESMA instância do bot entre o Admin e a Rota de Schedule.
+const globalForBot = globalThis as unknown as { whatsappBot: WhatsAppBot | undefined };
+export const whatsappBot = globalForBot.whatsappBot ?? new WhatsAppBot();
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForBot.whatsappBot = whatsappBot;
+}

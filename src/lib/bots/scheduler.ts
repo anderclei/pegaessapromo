@@ -365,5 +365,10 @@ class PostScheduler {
   }
 }
 
-// Singleton
-export const postScheduler = new PostScheduler();
+// Forçar Singleton Único no Next.js (mesmo em dev com Fast Refresh)
+const globalForScheduler = globalThis as unknown as { postScheduler: PostScheduler | undefined };
+export const postScheduler = globalForScheduler.postScheduler ?? new PostScheduler();
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForScheduler.postScheduler = postScheduler;
+}
