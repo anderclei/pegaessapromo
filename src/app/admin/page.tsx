@@ -1098,6 +1098,11 @@ export default function AdminDashboard() {
                           <div style={{ color: log.status === 'success' ? '#22c55e' : '#ef4444', fontWeight: 'bold' }}>
                             {log.status === 'success' ? 'Sucesso' : 'Erro'}
                           </div>
+                          {log.status === 'error' && log.message && (
+                            <div style={{ fontSize: '0.75rem', color: '#ef4444', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={log.message}>
+                              {log.message}
+                            </div>
+                          )}
                           <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{new Date(log.timestamp).toLocaleTimeString()}</div>
                         </div>
                       </div>
