@@ -255,13 +255,16 @@ IMPORTANTE:
         console.log(`[COPY] Chamando Ollama localmente (Modelo: ${ollamaModel})...`);
         
         try {
-          const res = await fetch('http://127.0.0.1:11434/api/generate', {
+          const res = await fetch('http://127.0.0.1:11434/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               model: ollamaModel,
-              prompt: richPrompt,
-              stream: true // Usa stream para manter a conexão ativa e não dar Timeout no NextJS!
+              messages: [
+                 { role: "system", content: "Você é um robô de ofertas e seu único objetivo é gerar UMA copy incrível, direta e chamativa para WhatsApp. O tom de voz deve ser engraçado, cativante e focado em economia e urgência." },
+                 { role: "user", content: richPrompt }
+              ],
+              stream: true
             })
           });
           
@@ -282,7 +285,7 @@ IMPORTANTE:
               for (const line of lines) {
                 try {
                   const chunkData = JSON.parse(line);
-                  if (chunkData.response) aiStreamedText += chunkData.response;
+                  if (chunkData.message?.content) aiStreamedText += chunkData.message.content;
                 } catch(e) {}
               }
             }
