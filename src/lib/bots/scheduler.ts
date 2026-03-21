@@ -35,7 +35,20 @@ class PostScheduler {
   get lastRun() { return this._lastRun; }
 
   configure(config: Partial<ScheduleConfig>): void {
+    const oldInterval = this._config.intervalMinutes;
     this._config = { ...this._config, ...config };
+    
+    // If the interval changed and it's already running, we need to restart the timer
+    if (this._isRunning && oldInterval !== this._config.intervalMinutes) {
+      if (this._intervalId) {
+        clearInterval(this._intervalId);
+      }
+      this._intervalId = setInterval(
+        () => this.runPostingCycle(),
+        this._config.intervalMinutes * 60 * 1000
+      );
+      console.log(`⏰ Intervalo do agendamento atualizado para: a cada ${this._config.intervalMinutes} minutos`);
+    }
   }
 
   setGroups(groups: string[]): void {

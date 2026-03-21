@@ -299,18 +299,28 @@ export async function scrapeAmazon(category: string = 'todos', type: string = 'b
         }
       });
 
-      // Special handling for "Unbeatable Deals" (Highest discount)
-      if (type === 'super') {
-        products.sort((a, b) => (b.discount || 0) - (a.discount || 0));
-        return products.slice(0, 20);
-      }
     }
 
-    if (products.length === 0) {
-      console.log(`Nenhum produto encontrado em ${url} para o tipo ${type}`);
+    // Aplicar filtro de focado exclusivo do usuário (ignorar produtos ruins que não vendem)
+    const badWords = ['cabo', 'adaptador', 'fone com fio', 'fone intra-auricular com fio', 'capinha', 'película', 'carregador de parede'];
+    
+    let filteredProducts = products.filter(p => {
+       const titleLower = p.title.toLowerCase();
+       return !badWords.some(bw => titleLower.includes(bw));
+    });
+
+    if (filteredProducts.length === 0) {
+      console.log(`Nenhum produto (após filtros de palavra) encontrado em ${url} para o tipo ${type}`);
       return [];
     }
-    return products;
+
+    // Special handling for "Unbeatable Deals" (Highest discount) globally
+    if (type === 'super') {
+      filteredProducts.sort((a, b) => (b.discount || 0) - (a.discount || 0));
+      return filteredProducts.slice(0, 20);
+    }
+
+    return filteredProducts;
   } catch (error) {
     console.error(`Erro ao buscar Amazon (${type}):`, error);
     return [];

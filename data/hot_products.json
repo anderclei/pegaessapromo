@@ -1,5 +1,5 @@
 {
-  "lastSync": "2026-03-21T14:27:26.378Z",
+  "lastSync": "2026-03-21T17:27:16.369Z",
   "metadata": {
     "totalProducts": 80,
     "categoriesSynced": [
@@ -1393,6 +1393,24 @@
   ],
   "ofertas_gerais": [
     {
+      "id": "B0C3V5X3QT",
+      "url": "https://www.amazon.com.br/JBL-Fone-Ouvido-Tune-520BT/dp/B0C3V5X3QT/ref=zg_bs_g_electronics_d_sccl_4/143-2146496-5600765?psc=1&tag=andercleipino-20",
+      "type": "bestsellers",
+      "image": "https://images-na.ssl-images-amazon.com/images/I/51olNZRjn+L._AC_UL300_SR300,200_.jpg",
+      "price": 216,
+      "sales": 110684,
+      "title": "JBL, Fone de Ouvido On ear, Headphone, Tune 520BT, Sem Fio - Preto",
+      "rating": 4.8,
+      "reviews": 25998,
+      "category": "eletronicos",
+      "discount": 28,
+      "listType": "bestsellers",
+      "platform": "amazon",
+      "createdAt": "2026-03-21T13:19:38.951Z",
+      "freeShipping": true,
+      "originalPrice": 299
+    },
+    {
       "id": "B0DJFTJ6LX",
       "url": "https://www.amazon.com.br/Apple-iPhone-16-128-GB/dp/B0DJFTJ6LX/ref=zg_bs_g_electronics_d_sccl_5/143-2146496-5600765?psc=1&tag=andercleipino-20",
       "type": "bestsellers",
@@ -1408,8 +1426,7 @@
       "platform": "amazon",
       "createdAt": "2026-03-21T13:19:37.951Z",
       "freeShipping": true,
-      "originalPrice": 6799,
-      "creativeCopy": "🚨 _Bug de Preço INSANO_ no iPhone 16! 🤯📲\n\nSério, o que tá rolando aqui é *surreal*! O Apple iPhone 16 (128 GB) Preto, o brabo da vez, despencou de preço! 🚀 Chega de passar perrengue com celular travando, né? Essa belezinha é pra você tirar fotos de milhões e rodar tudo liso! É o *upgrade* que seu bolso pede.\n\nDe R$ 6.799,00 por APENAS *R$ 4.529,00*! 😱 Um desconto de 33% pra deixar qualquer um de queixo caído. E a cereja do bolo? *FRETE GRÁTIS!* 🚚 Corre que vai acabar! Essa oferta não dura!\n\n👇 COMPRE AGORA:\nhttps://pegaessapromo.app.br/p/B0DJFTJ6LX"
+      "originalPrice": 6799
     },
     {
       "id": "B076HYZQMW",
@@ -1445,8 +1462,7 @@
       "platform": "amazon",
       "createdAt": "2026-03-21T13:19:32.951Z",
       "freeShipping": true,
-      "originalPrice": 19.01,
-      "creativeCopy": "SEU ELETRÔNICO PEDIU SOCORRO? AQUI TÁ A ENERGIA DA PAZ! ⚡️🔌\n\nGalera, chegou o *Cabo de Força Bipolar 2 Pinos* que vai dar um *UP* na sua vida digital! Seu monitor tá no escuro? TV apagada? Impressora tirando um cochilo eterno? Dê adeus ao drama! 👋\n\nEsse cabo é *universal*, bivolt, 1,5m de pura potência pra PC, TV, impressora e notebook! Compatibilidade que é puro suco do Brasil! 🇧🇷\n\nIsso não é oferta, é um BUG DE PREÇO que a gente achou! De R$ *19,01* por APENAS *R$ 12,00*! 🤯 É 37% de desconto na sua cara! E o melhor? *FRETE GRÁTIS!* 🚚 Corre que vai acabar, isso aqui não é pra amadores!\n\n👇 COMPRE AGORA:\nhttps://pegaessapromo.app.br/p/B0GJ5Y1LLN"
+      "originalPrice": 19.01
     },
     {
       "id": "B077719JMJ",
