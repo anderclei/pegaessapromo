@@ -55,7 +55,8 @@ function generateAIDA(product: Product, affiliateLink: string): CopyResult[] {
         `⭐ ${product.rating.toFixed(1)} (${product.reviews} avaliações)\n` +
         `📦 +${product.sales.toLocaleString('pt-BR')} vendidos\n` +
         `${product.freeShipping ? '🚚 *FRETE GRÁTIS*\n' : ''}\n` +
-        `👇 Compre aqui:\n${affiliateLink}`,
+        `👇 Compre aqui:\n${affiliateLink}\n\n` +
+        `*⚠️ Atenção:* Os preços podem sofrer alterações ou o estoque acabar a qualquer momento!`,
       hashtags: '',
       affiliateLink,
     },
@@ -119,7 +120,8 @@ function generatePAS(product: Product, affiliateLink: string): CopyResult[] {
         `✅ +${product.sales.toLocaleString('pt-BR')} vendidos\n` +
         `✅ ${priceText}${discountText}\n` +
         `${product.freeShipping ? '✅ *Frete grátis*\n' : ''}\n` +
-        `Compre pelo link: ${affiliateLink}`,
+        `Compre pelo link: ${affiliateLink}\n\n` +
+        `*⚠️ Atenção:* Os preços podem sofrer alterações ou o estoque acabar a qualquer momento!`,
       hashtags: '',
       affiliateLink,
     },
@@ -181,7 +183,8 @@ function generateBAB(product: Product, affiliateLink: string): CopyResult[] {
         `💰 *${priceText}*${discountText}\n` +
         `⭐ Nota ${product.rating.toFixed(1)}\n` +
         `${product.freeShipping ? '🚚 *Frete grátis*\n' : ''}\n` +
-        `${affiliateLink}`,
+        `${affiliateLink}\n\n` +
+        `*⚠️ Atenção:* Os preços podem sofrer alterações ou o estoque acabar a qualquer momento!`,
       hashtags: '',
       affiliateLink,
     },
@@ -220,30 +223,31 @@ export async function generateAllCopies(product: Product, affiliateLink: string,
       const richPrompt = `Escreva uma copy para WhatsApp de oferta de um produto.
 
 🔥 REGRAS:
-- Seja extremamente energético e persuasivo (use emojis de sirenes e fogo).
+- Seja extremamente energético e persuasivo.
 - Crie uma MANCHETE INOVADORA e chamativa no topo.
-- Fale sobre o produto de forma natural e resumida (NÃO engula o título gigante e não use colchetes, faça soar como uma pessoa falando).
-- Diga o preço com muita urgência.
-- NÃO COPIE os exemplos abaixo palavra por palavra. Eles servem apenas para mostrar o TOM DE VOZ. Use sua criatividade!
+- Fale sobre o produto de forma natural e resumida (NÃO engula o título gigante).
+- Se não houver "PREÇO ANTIGO" nos dados, NÃO INVENTE UM. Apenas diga o preço atual!
+- NÃO COPIE os exemplos abaixo palavra por palavra.
 
 Exemplo de tom de voz 1:
 🚨⚡🔥 O PATRÃO ENDOIDOU DE VEZ! 🔥⚡🚨
 Vocês não vão acreditar no preço dessa Smart TV Samsung! 🤯 O patrão mandou zerar o estoque hoje!
-De R$ 2.500,00 por APENAS R$ 1.899,00! 😱 São 24% OFF e ainda com FRETE GRÁTIS pra VOCÊ! 🚀 Adeus TV velha, olá cinema na sala!
-ESTOQUE AQUECIDO MAIS RÁPIDO QUE WI-FI GRÁTIS! 💨 Não perde essa chance de ouro!
+De R$ 2.500,00 por APENAS R$ 1.899,00! 😱 São 24% OFF e ainda com FRETE GRÁTIS pra VOCÊ! 🚀 Adeus TV velha!
+ESTOQUE AQUECIDO! 💨
 👇 COMPRE AGORA:
-https://exemplo.link/tv
+https://exemplo.link
 
-Exemplo de tom de voz 2:
-🔥🚨⚡ SURTO NO SISTEMA, PREÇO DESPENCOU! ⚡🚨🔥
-MEU DEUS DO CÉU, É PRA ZERAR TUDO! 😱 Esse Jogo de Panelas Tramontina tá com um preço que não dá pra acreditar! De R$ 599,00 por APENAS R$ 252,00! 🤯 QUASE PELA METADE DO PREÇO! E o melhor? FRETE GRÁTIS! 🚚 Corre que essa promo vai acabar em minutos, as unidades estão VOANDO!
+Exemplo de tom de voz 2 (Para produtos sem preço antigo informado):
+🔥🚨⚡ OFERTA RELÂMPAGO! ⚡🚨🔥
+MEU DEUS! 😱 Encontramos esse Jogo de Panelas Tramontina completasso por um preço ridículo de barato! APENAS R$ 252,00 na promoção! 🤯 E o melhor? FRETE GRÁTIS! 🚚 
+As unidades estão VOANDO!
 👇 COMPRE AGORA:
-https://exemplo.link/panelas
+https://exemplo.link
 
 Agora é a SUA vez de criar a copy para o PRODUTO ABAIXO. 
-MANCHETE INÉDITA! Aja naturalmente, resuma o nome do produto para o texto ficar gostoso de ler:
+MANCHETE INÉDITA! Aja naturalmente:
 
-PRODUTO REAL DA OFERTA: "${product.title}"
+PRODUTO DA OFERTA: "${product.title}"
 PREÇO ATUAL: ${priceText} (ESCREVA EXATAMENTE ASSIM)
 ${oldPriceText ? `PREÇO ANTIGO: ${oldPriceText}` : ''}
 ${discount ? `DESCONTO NA LOJA: ${discount}` : ''}
@@ -306,11 +310,19 @@ IMPORTANTE FINAL: A copy DEVE terminar EXATAMENTE com "👇 COMPRE AGORA:" e SEM
       
       console.log(`[COPY] IA respondeu (${aiText ? aiText.length : 0} chars)`);
       if (aiText && aiText.length > 20) {
+        
+        const disclaimerStr = `\n\n*⚠️ Atenção:* Os preços podem sofrer alterações ou o estoque acabar a qualquer momento!`;
+        let finalAiText = aiText.trim();
+        // Fallback for cases where AI might generate the disclaimer by itself (to prevent double duplication)
+        if (!finalAiText.includes('⚠️')) {
+            finalAiText += disclaimerStr;
+        }
+
         // Overwrite the WhatsApp copy for all templates just to be sure we use the AI copy whenever a template is chosen
         for (const template of ['aida', 'pas', 'bab']) {
            const waIndex = result[template].findIndex((c: any) => c.platform === 'whatsapp');
            if (waIndex !== -1) {
-             result[template][waIndex].body = aiText;
+             result[template][waIndex].body = finalAiText;
            }
         }
         console.log('[COPY] WhatsApp template sobrescrito com sucesso via IA.');

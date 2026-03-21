@@ -66,7 +66,7 @@ export async function POST(request: Request) {
             if (affiliateLink.includes('amazon') && mergedConfig.amazonId) {
               const sym = affiliateLink.includes('?') ? '&' : '?';
               if (!affiliateLink.includes('tag=')) affiliateLink += `${sym}tag=${mergedConfig.amazonId}`;
-              siteLink = affiliateLink; // Use affiliate link if siteUrl is not properly set
+              if (!mergedConfig.siteUrl) siteLink = affiliateLink; // Use affiliate link ONLY if siteUrl is truly empty
             }
 
             const copies = await import('@/lib/copywriter').then(m => m.generateAllCopies(body.singleProduct, siteLink, mergedConfig));
@@ -94,7 +94,7 @@ export async function POST(request: Request) {
             if (affiliateLink.includes('amazon') && mergedConfig.amazonId) {
               const sym = affiliateLink.includes('?') ? '&' : '?';
               if (!affiliateLink.includes('tag=')) affiliateLink += `${sym}tag=${mergedConfig.amazonId}`;
-              siteLink = affiliateLink; // fallback
+              if (!mergedConfig.siteUrl) siteLink = affiliateLink; // Use affiliate link ONLY if siteUrl is truly empty
             }
 
             if (!mergedConfig.geminiKey) {
