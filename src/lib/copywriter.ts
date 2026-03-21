@@ -218,28 +218,17 @@ export async function generateAllCopies(product: Product, affiliateLink: string,
       const oldPriceText = product.originalPrice && product.originalPrice > product.price ? formatPrice(product.originalPrice) : '';
 
       const basePrompt = `
-Você é um assistente de marketing especializado em criar mensagens curtas e promocionais para grupos de ofertas no WhatsApp.
-Sua missão é formatar as informações abaixo de forma atraente, focando no desconto e no produto de forma animada.
+Escreva de forma muito descontraída e animada um pequeno texto recomendando o produto abaixo (focando na economia e no preço baixo).
 
-🔥 DIRETRIZES:
-1. Comece com uma MANCHETE chamativa para chamar a atenção.
-2. O tom de voz da mensagem deve ser: ${config.copyStyle || 'Animado e focado na economia'}.
-3. Recomende o produto com entusiasmo.
-4. Formatação WhatsApp: Use *negrito* nos preços e nos nomes.
+Produto: "${product.title}"
+Preço Atual: ${priceText}
+${oldPriceText ? `Valor Antigo: ${oldPriceText}` : ''}
+${discount ? `Desconto: ${discount}` : ''}
+${product.freeShipping ? `Possui Frete Grátis` : ''}
 
-🚨 INFORMAÇÕES FINANCEIRAS:
-- Utilize EXATAMENTE os preços fornecidos abaixo.
-- Não altere ou crie outros valores.
+Estilo do texto: ${config.copyStyle || 'Animado, criativo e focado no preço baixo'}.
 
-📦 DADOS DO PRODUTO (USE ESTES):
-- Nome original: "${product.title}"
-- Preço de agora (com a promoção aplicada): ${priceText}
-${oldPriceText ? `- Antigo Valor: ${oldPriceText}` : ''}
-${discount ? `- Porcentagem de Desconto Total: ${discount}` : ''}
-${product.freeShipping ? `- Aviso Extra: Contém FRETE GRÁTIS! 🚚` : ''}
-
-🔗 INSTRUÇÃO FINAL (OBRIGATÓRIO):
-Termine a sua mensagem incluindo obrigatoriamente exatamente as duas linhas a seguir:
+No final do seu texto, repita EXATAMENTE as duas linhas a seguir:
 👇 COMPRE AQUI:
 ${affiliateLink}
 `;
