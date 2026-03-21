@@ -218,39 +218,30 @@ export async function generateAllCopies(product: Product, affiliateLink: string,
       const oldPriceText = product.originalPrice && product.originalPrice > product.price ? formatPrice(product.originalPrice) : '';
 
       const basePrompt = `
-Você é o mestre absoluto do copywriting para grupos de ofertas no WhatsApp (estilo Pega Essa Promo). 
-Sua missão é criar uma mensagem COMPLETA, altamente persuasiva, que pareça ter sido escrita por um humano empolgado com uma oferta absurda.
+Você é um assistente de marketing especializado em criar mensagens curtas e promocionais para grupos de ofertas no WhatsApp.
+Sua missão é formatar as informações abaixo de forma atraente, focando no desconto e no produto de forma animada.
 
-🔥 REGRAS DE OURO:
-1. Comece com uma MANCHETE CRIATIVA e DIFERENTE para cada produto. NÃO repita sempre "BUG DE PREÇO".
-2. Seja MUITO BEM HUMORADO e use expressões engraçadas adaptadas ao produto. Exemplo: Para Perfume/Whisky: "Aquele que meu patrão usa na lancha", ou Eletrônicos: "Os alienígenas desceram pra ver essa promoção", etc.
-3. O tom de voz deve ser: ${config.copyStyle || 'Extremamente engraçado, informal e empolgado.'}. Use gírias criativas.
-4. Destaque o maior benefício do produto de uma forma que gere identificação ou risada.
-5. Crie uma urgência criativa ao invés do clichê padrão (ex: 'O estagiário endoidou e vai acabar já').
-6. Formatação WhatsApp: Use *negrito* nos preços e nos avisos importantes.
+🔥 DIRETRIZES:
+1. Comece com uma MANCHETE chamativa para chamar a atenção.
+2. O tom de voz da mensagem deve ser: ${config.copyStyle || 'Animado e focado na economia'}.
+3. Recomende o produto com entusiasmo.
+4. Formatação WhatsApp: Use *negrito* nos preços e nos nomes.
 
-🚨 REGRAS ESTRITAS DE PREÇO (PROIBIDO HALLUCINAR):
-- NUNCA INVENTE UM PREÇO OU DESCONTO FALSO. Você será penalizado se fizer isso!
-- MANTENHA OS CENTAVOS EXATAMENTE COMO INFORMADOS. NUNCA ARREDONDE OS VALORES. (Ex: se for R$ 19,90, escreva R$ 19,90).
-- Se o Preço Original NÃO for informado, não mencione "De R$ X" nem "Y% OFF". Apenas exalte que o Preço Atual está muito barato.
+🚨 INFORMAÇÕES FINANCEIRAS:
+- Utilize EXATAMENTE os preços fornecidos abaixo.
+- Não altere ou crie outros valores.
 
-📦 DADOS EXATOS DO PRODUTO A SEREM USADOS:
-- Nome: "${product.title}"
-- Preço Atual Exato: ${priceText}
-${oldPriceText ? `- Preço Original: ${oldPriceText}` : ''}
-${discount ? `- Desconto Calculado: ${discount}` : ''}
-${product.freeShipping ? `- Diferencial: FRETE GRÁTIS! 🚚` : ''}
+📦 DADOS DO PRODUTO (USE ESTES):
+- Nome original: "${product.title}"
+- Preço de agora (com a promoção aplicada): ${priceText}
+${oldPriceText ? `- Antigo Valor: ${oldPriceText}` : ''}
+${discount ? `- Porcentagem de Desconto Total: ${discount}` : ''}
+${product.freeShipping ? `- Aviso Extra: Contém FRETE GRÁTIS! 🚚` : ''}
 
-🔗 CHAMADA PARA AÇÃO (OBRIGATÓRIO):
-Ao final da mensagem, em uma linha separada, inclua exatamente isto:
-👇 COMPRE AGORA:
+🔗 INSTRUÇÃO FINAL (OBRIGATÓRIO):
+Termine a sua mensagem incluindo obrigatoriamente exatamente as duas linhas a seguir:
+👇 COMPRE AQUI:
 ${affiliateLink}
-
-IMPORTANTE: 
-- Não use saudações como 'Olá'. Vá direto para o "papo de oferta".
-- Não invente características ou preços que não foram dados acima.
-- Mantenha a mensagem curta (máximo 120 palavras).
-- OBRIGATÓRIO: Use quebras de linha DUPLAS (parágrafos curtos) para facilitar a leitura no celular. Não envie blocos gigantes de texto!
 `;
 
       let aiText = '';
