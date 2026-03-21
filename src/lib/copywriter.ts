@@ -271,13 +271,14 @@ IMPORTANTE:
           });
           
           if (!res.ok) {
-            throw new Error(`Erro Ollama: ${res.statusText}`);
+            const errTex = await res.text();
+            throw new Error(`Erro Ollama [${res.status}]: ${errTex}`);
           }
           const data = await res.json();
           aiText = data.response;
         } catch (err: any) {
           console.error('[COPY] Falha ao conectar no Ollama:', err.message);
-          throw new Error(`⚠️ Não foi possível conectar ao Ollama! Verifique se ele está rodando na sua máquina e se o modelo '${ollamaModel}' está baixado.`);
+          throw new Error(`⚠️ Erro com Ollama (${ollamaModel}): ${err.message}. Verifique se ele está aberto e se o seu computador não travou por limite de memória RAM (gerar textos locais demora de 2 a 5 minutos num PC comum!).`);
         }
       } else {
         // Fallback or explicit Gemini
