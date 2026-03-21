@@ -217,38 +217,50 @@ export async function generateAllCopies(product: Product, affiliateLink: string,
       const priceText = formatPrice(product.price);
       const oldPriceText = product.originalPrice && product.originalPrice > product.price ? formatPrice(product.originalPrice) : '';
 
-      const basePromptGemini = `
-Escreva de forma muito descontraída e animada um pequeno texto recomendando o produto abaixo (focando na economia e no preço baixo).
+      const richPrompt = `
+Você é o mestre absoluto do copywriting para grupos de economia no WhatsApp.
+Sua missão é criar uma mensagem COMPLETA, altamente chamativa e bem humorada de uma super oferta.
 
-Produto: "${product.title}"
-Preço Atual: ${priceText}
-${oldPriceText ? `Valor Antigo: ${oldPriceText}` : ''}
-${discount ? `Desconto: ${discount}` : ''}
-${product.freeShipping ? `Possui Frete Grátis` : ''}
+🔥 REGRAS DE OURO:
+1. Comece com uma MANCHETE CRIATIVA e DIFERENTE para cada produto.
+2. Seja MUITO BEM HUMORADO e use expressões engraçadas adaptadas ao produto. 
+3. O tom de voz deve ser: ${config.copyStyle || 'Engraçado, informal e focado em economia'}.
+4. Destaque o benefício do produto com gírias atuais.
+5. Formatação WhatsApp: Use *negrito* nos preços e nos avisos importantes.
 
-Estilo do texto: ${config.copyStyle || 'Animado, criativo e focado no preço baixo'}.
+🚨 REGRAS DE PREÇO:
+- MANTENHA OS CENTAVOS EXATAMENTE COMO INFORMADOS. NÃO INVENTE.
 
-No final do seu texto, repita EXATAMENTE as duas linhas a seguir:
-👇 COMPRE AQUI:
+📦 DADOS DO PRODUTO A SEREM USADOS:
+- Nome: "${product.title}"
+- Preço Atual Exato: ${priceText}
+${oldPriceText ? `- Preço Antigo: ${oldPriceText}` : ''}
+${discount ? `- Desconto de: ${discount}` : ''}
+${product.freeShipping ? `- Diferencial: FRETE GRÁTIS! 🚚` : ''}
+
+🔗 CHAMADA PARA AÇÃO (OBRIGATÓRIO):
+Ao final, em uma linha separada, inclua exatamente isto:
+👇 COMPRE AGORA:
 ${affiliateLink}
+
+IMPORTANTE: 
+- NUNCA use saudações como 'Olá'. Vá direto para o "papo de oferta".
+- Mensagem curta (máximo 120 palavras), com parágrafos separados para leitura fácil no celular.
 `;
 
       let aiText = '';
       
       if (config.aiProvider === 'ollama') {
-        const ollamaModel = config.ollamaModel || 'llama3.2';
+        const ollamaModel = config.ollamaModel || 'qwen2.5:1.5b';
         console.log(`[COPY] Chamando Ollama localmente (Modelo: ${ollamaModel})...`);
         
         try {
-          // PROMPT TOTALMENTE INOFENSIVO PARA BYPASSAR O FILTRO DE CONTEÚDO
-          const safeOllamaPrompt = `Faça um comentário muito curto (máximo 2 frases) de forma descontraída, bem animada e super amigável sobre quão bom ou útil é o seguinte item: "${product.title}".\n\nRegra: Não crie roteiros, não invente links, e não fale de preços. Apenas o comentário.`;
-          
           const res = await fetch('http://127.0.0.1:11434/api/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               model: ollamaModel,
-              prompt: safeOllamaPrompt,
+              prompt: richPrompt,
               stream: false
             })
           });
@@ -258,16 +270,14 @@ ${affiliateLink}
             throw new Error(`Erro Ollama [${res.status}]: ${errTex}`);
           }
           const data = await res.json();
-          // Code builds the rest of the promotional ad to protect the AI from itself
-          const cleanIntro = data.response.replace(/"/g, '').trim();
-          aiText = `🎯 ${cleanIntro}\n\n*${product.title}*\n\n💰 *${priceText}*\n${oldPriceText ? `❌ De: ~${oldPriceText}~\n` : ''}${product.freeShipping ? `🚚 *FRETE GRÁTIS*\n` : ''}\n👇 *Garanta o seu aqui:*\n${affiliateLink}`;
+          aiText = data.response;
         } catch (err: any) {
           console.error('[COPY] Falha ao conectar no Ollama:', err.message);
           throw new Error(`⚠️ Erro com Ollama (${ollamaModel}): ${err.message}. Verifique se ele está aberto e se o seu computador não travou por limite de memória RAM (gerar textos locais demora de 2 a 5 minutos num PC comum!).`);
         }
       } else {
         // Fallback or explicit Gemini
-        const geminiResponse = await model.generateContent(basePromptGemini);
+        const geminiResponse = await model.generateContent(richPrompt);
         aiText = geminiResponse.response.text();
       }
       
