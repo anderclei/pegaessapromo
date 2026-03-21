@@ -30,6 +30,9 @@ class PostScheduler {
   private _selectedGroups: string[] = [];
   private _affiliateConfig: any = { mercadolivreId: '', shopeeId: '', geminiKey: '', siteUrl: '' };
 
+  private _scraperQueue: Product[] = [];
+  private _lastScrapeTime: number = 0;
+
   get config() { return this._config; }
   get isRunning() { return this._isRunning; }
   get lastRun() { return this._lastRun; }
@@ -145,12 +148,21 @@ class PostScheduler {
         }
       }
 
+      const nowMs = Date.now();
+      const needsToScrape = (nowMs - this._lastScrapeTime >= 55 * 60 * 1000) || this._scraperQueue.length === 0;
+
+      let hotData: any = null;
+      try {
+        hotData = await loadHotProducts();
+      } catch(e) {}
+
       // PHASE 1: Scrape Fresh Products (Lightning Deals + Bestsellers + Synced Cache)
-      let allProducts: Product[] = [];
-      const categories = this._selectedGroups
-        .map(g => whatsappBot.groups.find(group => group.id === g)?.categories)
-        .filter((c): c is GroupCategory[] => !!c)
-        .flat();
+      if (needsToScrape) {
+        let allProducts: Product[] = [];
+        const categories = this._selectedGroups
+          .map(g => whatsappBot.groups.find(group => group.id === g)?.categories)
+          .filter((c): c is GroupCategory[] => !!c)
+          .flat();
       
       const uniqueCategories = Array.from(new Set(categories));
       
@@ -170,7 +182,6 @@ class PostScheduler {
       }
 
       // Supplement with cached data to avoid empty runs
-      let hotData: any = null;
       try {
         hotData = await loadHotProducts();
         if (hotData) {
@@ -196,23 +207,43 @@ class PostScheduler {
         return hasHighDiscount || isSpecialType;
       });
 
-      // Sort by urgency: Lightning Deals first, then by discount amount
-      allProducts.sort((a, b) => {
-        const typePriority = (type?: string) => type === 'lightning' ? 2 : (type === 'super' ? 1 : 0);
-        const priorityA = typePriority(a.type);
-        const priorityB = typePriority(b.type);
-        
-        if (priorityA !== priorityB) return priorityB - priorityA;
-        return (b.discount || 0) - (a.discount || 0);
-      });
+        // Sort by urgency: Lightning Deals first, then by discount amount
+        allProducts.sort((a, b) => {
+          const typePriority = (type?: string) => type === 'lightning' ? 2 : (type === 'super' ? 1 : 0);
+          const priorityA = typePriority(a.type);
+          const priorityB = typePriority(b.type);
+          
+          if (priorityA !== priorityB) return priorityB - priorityA;
+          return (b.discount || 0) - (a.discount || 0);
+        });
 
-      // Filter already posted
-      const filteredProducts = allProducts.filter(
-        p => !whatsappBot.isProductAlreadyPosted(p.id)
-      );
+        this._scraperQueue = allProducts;
+        this._lastScrapeTime = nowMs;
+        console.log(`📡 [SCRAPER] Realizou uma nova busca pesada. Retornou ${allProducts.length} produtos para a fila.`);
+      } else {
+        console.log('📡 [SCRAPER] Usando ofertas da fila em cache (buscas ocorrem a cada 60 mins)...');
+      }
+
+      // Explicit global rejection filter to ensure no bad words slip through from cached JSON or other platforms
+      const badWords = ['cabo', 'adaptador', 'fone com fio', 'fone intra-auricular com fio', 'capinha', 'película', 'carregador de parede'];
+
+      const filteredProducts = this._scraperQueue.filter(p => {
+        if (whatsappBot.isProductAlreadyPosted(p.id)) return false;
+        
+        const titleLower = p.title.toLowerCase();
+        if (badWords.some(bw => titleLower.includes(bw))) return false;
+        
+        return true;
+      });
 
       // Take top N (quality over quantity)
       const productsToPost = filteredProducts.slice(0, this._config.maxPostsPerRun);
+
+      // If we depleted the queue but still need products, force a scrape next time
+      if (productsToPost.length === 0 && this._scraperQueue.length > 0) {
+        // Queue is completely full of trash or already posted items
+        this._scraperQueue = [];
+      }
 
       // PHASE 2: GitHub Push & Vercel Trigger (Publicar no Vitrine)
       if (productsToPost.length > 0) {
