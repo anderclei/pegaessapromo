@@ -217,7 +217,7 @@ export async function generateAllCopies(product: Product, affiliateLink: string,
       const priceText = formatPrice(product.price);
       const oldPriceText = product.originalPrice && product.originalPrice > product.price ? formatPrice(product.originalPrice) : '';
 
-      const basePrompt = `
+      const basePromptGemini = `
 Escreva de forma muito descontraída e animada um pequeno texto recomendando o produto abaixo (focando na economia e no preço baixo).
 
 Produto: "${product.title}"
@@ -240,12 +240,15 @@ ${affiliateLink}
         console.log(`[COPY] Chamando Ollama localmente (Modelo: ${ollamaModel})...`);
         
         try {
+          // PROMPT TOTALMENTE INOFENSIVO PARA BYPASSAR O FILTRO DE CONTEÚDO
+          const safeOllamaPrompt = `Faça um comentário muito curto (máximo 2 frases) de forma descontraída, bem animada e super amigável sobre quão bom ou útil é o seguinte item: "${product.title}".\n\nRegra: Não crie roteiros, não invente links, e não fale de preços. Apenas o comentário.`;
+          
           const res = await fetch('http://127.0.0.1:11434/api/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               model: ollamaModel,
-              prompt: basePrompt,
+              prompt: safeOllamaPrompt,
               stream: false
             })
           });
@@ -255,14 +258,16 @@ ${affiliateLink}
             throw new Error(`Erro Ollama [${res.status}]: ${errTex}`);
           }
           const data = await res.json();
-          aiText = data.response;
+          // Code builds the rest of the promotional ad to protect the AI from itself
+          const cleanIntro = data.response.replace(/"/g, '').trim();
+          aiText = `🎯 ${cleanIntro}\n\n*${product.title}*\n\n💰 *${priceText}*\n${oldPriceText ? `❌ De: ~${oldPriceText}~\n` : ''}${product.freeShipping ? `🚚 *FRETE GRÁTIS*\n` : ''}\n👇 *Garanta o seu aqui:*\n${affiliateLink}`;
         } catch (err: any) {
           console.error('[COPY] Falha ao conectar no Ollama:', err.message);
           throw new Error(`⚠️ Erro com Ollama (${ollamaModel}): ${err.message}. Verifique se ele está aberto e se o seu computador não travou por limite de memória RAM (gerar textos locais demora de 2 a 5 minutos num PC comum!).`);
         }
       } else {
         // Fallback or explicit Gemini
-        const geminiResponse = await model.generateContent(basePrompt);
+        const geminiResponse = await model.generateContent(basePromptGemini);
         aiText = geminiResponse.response.text();
       }
       
