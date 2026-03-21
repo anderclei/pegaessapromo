@@ -217,36 +217,39 @@ export async function generateAllCopies(product: Product, affiliateLink: string,
       const priceText = formatPrice(product.price);
       const oldPriceText = product.originalPrice && product.originalPrice > product.price ? formatPrice(product.originalPrice) : '';
 
-      const richPrompt = `
-Você é o mestre absoluto do copywriting para grupos de economia no WhatsApp.
-Sua missão é criar uma mensagem COMPLETA, altamente chamativa e bem humorada de uma super oferta.
+      const richPrompt = `Escreva uma copy para WhatsApp de oferta de um produto.
 
-🔥 REGRAS DE OURO:
-1. Comece com uma MANCHETE CRIATIVA e DIFERENTE para cada produto.
-2. Seja MUITO BEM HUMORADO e use expressões engraçadas adaptadas ao produto. 
-3. O tom de voz deve ser: ${config.copyStyle || 'Engraçado, informal e focado em economia'}.
-4. Destaque o benefício do produto com gírias atuais.
-5. Formatação WhatsApp: Use *negrito* nos preços e nos avisos importantes.
+🔥 REGRAS:
+- Seja extremamente energético e persuasivo (use emojis de sirenes e fogo).
+- Crie uma MANCHETE INOVADORA e chamativa no topo.
+- Fale sobre o produto de forma natural e resumida (NÃO engula o título gigante e não use colchetes, faça soar como uma pessoa falando).
+- Diga o preço com muita urgência.
+- NÃO COPIE os exemplos abaixo palavra por palavra. Eles servem apenas para mostrar o TOM DE VOZ. Use sua criatividade!
 
-🚨 REGRAS DE PREÇO:
-- MANTENHA OS CENTAVOS EXATAMENTE COMO INFORMADOS. NÃO INVENTE.
-
-📦 DADOS DO PRODUTO A SEREM USADOS:
-- Nome: "${product.title}"
-- Preço Atual Exato: ${priceText}
-${oldPriceText ? `- Preço Antigo: ${oldPriceText}` : ''}
-${discount ? `- Desconto de: ${discount}` : ''}
-${product.freeShipping ? `- Diferencial: FRETE GRÁTIS! 🚚` : ''}
-
-🔗 CHAMADA PARA AÇÃO (OBRIGATÓRIO):
-Ao final, em uma linha separada, inclua exatamente isto:
+Exemplo de tom de voz 1:
+🚨⚡🔥 O PATRÃO ENDOIDOU DE VEZ! 🔥⚡🚨
+Vocês não vão acreditar no preço dessa Smart TV Samsung! 🤯 O patrão mandou zerar o estoque hoje!
+De R$ 2.500,00 por APENAS R$ 1.899,00! 😱 São 24% OFF e ainda com FRETE GRÁTIS pra VOCÊ! 🚀 Adeus TV velha, olá cinema na sala!
+ESTOQUE AQUECIDO MAIS RÁPIDO QUE WI-FI GRÁTIS! 💨 Não perde essa chance de ouro!
 👇 COMPRE AGORA:
-${affiliateLink}
+https://exemplo.link/tv
 
-IMPORTANTE: 
-- NUNCA use saudações como 'Olá'. Vá direto para o "papo de oferta".
-- Mensagem curta (máximo 120 palavras), com parágrafos separados para leitura fácil no celular.
-`;
+Exemplo de tom de voz 2:
+🔥🚨⚡ SURTO NO SISTEMA, PREÇO DESPENCOU! ⚡🚨🔥
+MEU DEUS DO CÉU, É PRA ZERAR TUDO! 😱 Esse Jogo de Panelas Tramontina tá com um preço que não dá pra acreditar! De R$ 599,00 por APENAS R$ 252,00! 🤯 QUASE PELA METADE DO PREÇO! E o melhor? FRETE GRÁTIS! 🚚 Corre que essa promo vai acabar em minutos, as unidades estão VOANDO!
+👇 COMPRE AGORA:
+https://exemplo.link/panelas
+
+Agora é a SUA vez de criar a copy para o PRODUTO ABAIXO. 
+MANCHETE INÉDITA! Aja naturalmente, resuma o nome do produto para o texto ficar gostoso de ler:
+
+PRODUTO REAL DA OFERTA: "${product.title}"
+PREÇO ATUAL: ${priceText} (ESCREVA EXATAMENTE ASSIM)
+${oldPriceText ? `PREÇO ANTIGO: ${oldPriceText}` : ''}
+${discount ? `DESCONTO NA LOJA: ${discount}` : ''}
+${product.freeShipping ? `Destaque: TEM FRETE GRÁTIS 🚚` : ''}
+
+IMPORTANTE FINAL: A copy DEVE terminar EXATAMENTE com "👇 COMPRE AGORA:" e SEMPRE O LINK ${affiliateLink} na linha de baixo. NÃO ESCREVA ABSOLUTAMENTE MAIS NADA DEPOIS DO LINK DE COMPRA!`;
 
       let aiText = '';
       
@@ -261,7 +264,7 @@ IMPORTANTE:
             body: JSON.stringify({
               model: ollamaModel,
               messages: [
-                 { role: "system", content: "Você é um robô de ofertas e seu único objetivo é gerar UMA copy incrível, direta e chamativa para WhatsApp. O tom de voz deve ser engraçado, cativante e focado em economia e urgência." },
+                 { role: "system", content: "Você é um assistente especializado em criar copys de vendas explosivas para WhatsApp. Responda APENAS com a copy solicitada, sem introduções, sem formatações extras e PARE de escrever imediatamente após inserir o link." },
                  { role: "user", content: richPrompt }
               ],
               stream: true

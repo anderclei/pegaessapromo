@@ -55,19 +55,29 @@ export async function scrapeAmazon(category: string = 'todos', type: string = 'b
   try {
     let url = 'https://www.amazon.com.br/gp/bestsellers/';
     
-    if (type === 'lightning' || type === 'super') {
+    // Se for super ofertas e a categoria for 'todos', sorteamos uma categoria aleatória 
+    // para garantir MUITA variedade a cada nova busca!
+    let searchCategory = category;
+    let amazonCat = amazonSlug || CATEGORY_MAP[category] || 'electronics';
+    
+    if (type === 'super') {
+      if (category === 'todos' || !category) {
+        const catKeys = Object.keys(CATEGORY_MAP).filter(k => k !== 'todos');
+        searchCategory = catKeys[Math.floor(Math.random() * catKeys.length)];
+        amazonCat = CATEGORY_MAP[searchCategory] || 'electronics';
+      }
+      // Puxa a lista de 'Movers and Shakers' (produtos que mais subiram nas vendas)
+      // dessa categoria sorteada, pois geralmente são os que entraram em super promoção.
+      url = `https://www.amazon.com.br/gp/movers-and-shakers/${amazonCat}/`;
+    } else if (type === 'lightning') {
       url = 'https://www.amazon.com.br/deals?ref_=nav_cs_gb';
     } else if (type === 'new-releases') {
-      const amazonCat = amazonSlug || CATEGORY_MAP[category] || 'electronics';
       url = `https://www.amazon.com.br/gp/new-releases/${amazonCat}/`;
     } else if (type === 'movers-and-shakers') {
-      const amazonCat = amazonSlug || CATEGORY_MAP[category] || 'electronics';
       url = `https://www.amazon.com.br/gp/movers-and-shakers/${amazonCat}/`;
     } else if (type === 'most-wished-for') {
-      const amazonCat = amazonSlug || CATEGORY_MAP[category] || 'electronics';
       url = `https://www.amazon.com.br/gp/most-wished-for/${amazonCat}/`;
     } else {
-      const amazonCat = amazonSlug || CATEGORY_MAP[category] || 'electronics';
       url = `https://www.amazon.com.br/gp/bestsellers/${amazonCat}/`;
     }
     
@@ -83,7 +93,7 @@ export async function scrapeAmazon(category: string = 'todos', type: string = 'b
     const $ = cheerio.load(data);
     const products: Product[] = [];
 
-    const isStandardList = ['bestsellers', 'new-releases', 'movers-and-shakers', 'most-wished-for'].includes(type);
+    const isStandardList = ['bestsellers', 'new-releases', 'movers-and-shakers', 'most-wished-for', 'super'].includes(type);
 
     if (isStandardList) {
       // Robust Grid Selector for all Amazon lists (Bestsellers, New Releases, etc)
@@ -449,7 +459,8 @@ export async function hydrateAmazonPrice(product: Product): Promise<Product> {
        if (dMatch) directDiscount = parseInt(dMatch[1]);
     } else {
       // Fallback: search for "(XX% off)" or similar in the whole body
-      const offMatch = bodyText.match(/\(?(\d+)%\s*off\)?/i);
+      const bodyStr = $('body').text();
+      const offMatch = bodyStr.match(/\(?(\d+)%\s*off\)?/i);
       if (offMatch) directDiscount = parseInt(offMatch[1]);
     }
 
