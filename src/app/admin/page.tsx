@@ -1389,9 +1389,31 @@ export default function AdminDashboard() {
                 <h2>📦 Ofertas para Disparo Manual</h2>
                 <p>Veja as últimas ofertas buscadas e envie individualmente para o grupo quando quiser.</p>
               </div>
-              <button className="btn btn-secondary" onClick={fetchOffers} disabled={loadingOffers}>
-                {loadingOffers ? '⏳ Buscando...' : '🔄 Atualizar Ofertas'}
-              </button>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button className="btn btn-secondary" onClick={fetchOffers} disabled={loadingOffers}>
+                  {loadingOffers ? '⏳ Buscando...' : '🔄 Recarregar Tela'}
+                </button>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={async () => {
+                    if (!confirm('Esta ação fará o robô varrer a Amazon novamente buscando ofertas frescas para todas as categorias. Pode demorar de 1 a 3 minutos. Continuar?')) return;
+                    setLoadingOffers(true);
+                    try {
+                      alert('Varredura iniciada! Isso pode demorar até 3 minutos. Não feche a página, os produtos irão aparecer automaticamente quando a busca terminar.');
+                      await fetch('/api/amazon/sync', { method: 'POST', body: JSON.stringify({ config: { isAuto: false } }) });
+                      await fetchOffers();
+                      alert('Varredura finalizada com sucesso! Novos produtos carregados.');
+                    } catch (e) {
+                      alert('Erro ao forçar varredura. Verifique a conexão com a Amazon.');
+                      setLoadingOffers(false);
+                    }
+                  }} 
+                  disabled={loadingOffers}
+                  style={{ backgroundColor: '#d97706', color: 'white', border: 'none' }}
+                >
+                  🚀 Forçar Varredura na Amazon
+                </button>
+              </div>
             </div>
 
             {botStatus !== 'connected' && (

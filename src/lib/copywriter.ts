@@ -299,10 +299,15 @@ IMPORTANTE:
         console.warn('[COPY] Gemini retornou texto curto ou vazio. Usando fallback estático.');
       }
     } catch (e: any) {
-      console.error('[COPY] Erro fatal no call do Gemini:', e);
+      console.error('[COPY] Erro fatal no call da IA:', e);
+      if (e.message && e.message.includes('Ollama')) {
+         throw e; // Lança direto o erro limpo do Ollama
+      }
+      
       if (e.status === 429 || (e.message && e.message.includes('429'))) {
         throw new Error('⚠️ O limite grátis do Google (IA) foi atingido temporariamente (Muitos pedidos seguidos). Aguarde 1 minutinho e tente de novo!');
       }
+      
       if (config.strictGemini) {
         let availableModels = "";
         try {
