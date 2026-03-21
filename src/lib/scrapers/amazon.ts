@@ -106,8 +106,15 @@ export async function scrapeAmazon(category: string = 'todos', type: string = 'b
                       $el.find('img').attr('alt') || 
                       $el.find('.a-link-normal span').first().text().trim();
                       
-        const priceText = $el.find('.a-price .a-offscreen').first().text().trim() || 
-                          $el.find('.p13n-sc-price, .a-size-base.a-color-price').text().trim();
+        let priceWhole = $el.find('.a-price-whole').first().text().trim();
+        let priceFraction = $el.find('.a-price-fraction').first().text().trim();
+        let priceText = '';
+        if (priceWhole) {
+            priceText = `${priceWhole.replace(/[.,]/g, '')},${priceFraction || '00'}`;
+        } else {
+            priceText = $el.find('.a-price .a-offscreen').first().text().trim() || 
+                        $el.find('.p13n-sc-price, .a-size-base.a-color-price').text().trim();
+        }
                           
         const originalPriceText = $el.find('.a-price.a-text-price .a-offscreen').first().text().trim() ||
                                   $el.find('.a-text-strike').first().text().trim() ||
@@ -473,10 +480,13 @@ export async function hydrateAmazonPrice(product: Product): Promise<Product> {
       product.price = finalPrice;
     }
     
-    // Priority 1: Use detected original price from this hydration
+    // Priority 1: Use detected original price only if it's higher than the current one and seems valid
     if (originalPriceValue && originalPriceValue > product.price + 1) {
-      product.originalPrice = originalPriceValue;
-      product.discount = Math.round(((originalPriceValue - product.price) / originalPriceValue) * 100);
+      // Don't overwrite if the new original price is WORSE (lower) than what the grid already found!
+      if (!product.originalPrice || originalPriceValue > product.originalPrice) {
+         product.originalPrice = originalPriceValue;
+         product.discount = Math.round(((originalPriceValue - product.price) / originalPriceValue) * 100);
+      }
     } 
     // Priority 2: Use direct discount badge from this hydration (but don't invent DE price)
     else if (directDiscount > 0 && product.price > 0) {
