@@ -111,6 +111,22 @@ export async function POST(request: Request) {
         }
         return NextResponse.json({ success: false, message: 'Sem produto' });
 
+      case 'ban-product':
+        if (body.productId) {
+          const { loadHotProducts, saveHotProducts } = await import('@/lib/promotions');
+          const hotData = (await loadHotProducts()) || {};
+          
+          Object.keys(hotData).forEach(cat => {
+             if (Array.isArray(hotData[cat])) {
+                hotData[cat] = hotData[cat].filter((p: any) => p.id !== body.productId);
+             }
+          });
+          
+          await saveHotProducts(hotData);
+          return NextResponse.json({ success: true, message: 'Produto banido com sucesso.' });
+        }
+        return NextResponse.json({ success: false, message: 'Sem ID' });
+
       default:
         return NextResponse.json(
           { success: false, message: `Ação desconhecida: ${action}` },

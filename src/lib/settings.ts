@@ -18,6 +18,7 @@ export interface AffiliateConfig {
   scheduleStartTime?: string;
   scheduleEndTime?: string;
   fixedWhatsAppGroups?: any[];
+  forbiddenWords?: string;
 }
 
 export async function getSettings(): Promise<AffiliateConfig | null> {

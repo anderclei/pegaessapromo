@@ -37,7 +37,6 @@ export default function AdminDashboard() {
   const [endTime, setEndTime] = useState('19:00');
   const [template, setTemplate] = useState<'aida' | 'pas' | 'bab'>('aida');
   
-  // Settings State
   const [affiliateConfig, setAffiliateConfig] = useState({ 
     amazonId: 'andercleipino-20',
     amazonAccessKey: 'amzn1.application-oa2-client.27e8dc0d2d1d48b29a171860cf840a12',
@@ -50,7 +49,10 @@ export default function AdminDashboard() {
     rakutenId: '',
     geminiKey: '',
     siteUrl: 'https://pegaessapromo.com.br',
-    copyStyle: 'Copys bem humoradas, criativas, com emojis e gatilhos de urgência.'
+    copyStyle: 'Copys bem humoradas, criativas, com emojis e gatilhos de urgência.',
+    aiProvider: 'gemini' as 'gemini' | 'ollama',
+    ollamaModel: '',
+    forbiddenWords: 'cabo, adaptador, fone com fio, fone intra-auricular com fio, capinha, película, carregador de parede'
   });
   const [saveStatus, setSaveStatus] = useState(false);
   
@@ -278,6 +280,40 @@ export default function AdminDashboard() {
       alert('Erro de rede ao enviar a oferta.');
     }
     setSendingOffer(null);
+  };
+
+  const handleBanProduct = async (product: any) => {
+    const keyword = window.prompt(`🚫 Banir esse tipo de produto para sempre do robô.\n\nQual palavra-chave curta do nome "${product.title.substring(0, 30)}..." você quer bloquear?\n\nExemplo: cabo, capinha, fone com fio, prato`);
+    if (!keyword || keyword.trim() === '') return;
+    
+    // Add to forbiddenWords config
+    const currentForbidden = affiliateConfig.forbiddenWords ? affiliateConfig.forbiddenWords : 'cabo, adaptador, fone com fio, fone intra-auricular com fio, capinha, película, carregador de parede';
+    const newForbiddenWords = currentForbidden + ', ' + keyword.trim().toLowerCase();
+    
+    const newConfig = { ...affiliateConfig, forbiddenWords: newForbiddenWords };
+    setAffiliateConfig(newConfig);
+    localStorage.setItem('affiliateConfig', JSON.stringify(newConfig));
+    
+    try {
+      // Sync settings
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newConfig)
+      });
+      // Delete from DB cache
+      await fetch('/api/bots/schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'ban-product', productId: product.id })
+      });
+      
+      // Remove from UI
+      setOffers(prev => prev.filter(o => o.id !== product.id));
+      alert(`✅ A palavra "${keyword}" foi adicionada à Lista Negra e este produto foi apagado do seu painel e do seu site.`);
+    } catch(e) {
+      alert('Aconteceu um erro ao tentar banir o produto.');
+    }
   };
 
   const handleStandbyOffer = async (product: any) => {
@@ -725,6 +761,22 @@ export default function AdminDashboard() {
                   <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '5px' }}>
                     Descreva como você quer que o Gemini escreva suas ofertas (humor, urgência, tom de voz, etc).
                   </p>
+               </div>
+            </div>
+
+            <div className="admin-card" style={{ marginTop: '2rem' }}>
+               <h3>🛡️ Lista Negra (Palavras Proibidas)</h3>
+               <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem' }}>
+                 Qualquer produto que tenha essas palavras no nome será <b>instantaneamente descartado</b> pelo robô e não chegará ao seu painel.
+               </p>
+               <div className="form-field">
+                  <label style={{ color: '#333', fontWeight: 'bold' }}>Palavras separadas por VÍRGULA</label>
+                  <textarea 
+                    placeholder="Ex: cabo, filme, capa, película, adaptador..."
+                    style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc', minHeight: '60px', paddingTop: '10px' }}
+                    value={affiliateConfig.forbiddenWords || 'cabo, adaptador, fone com fio, fone intra-auricular com fio, capinha, película, carregador de parede'}
+                    onChange={e => setAffiliateConfig({...affiliateConfig, forbiddenWords: e.target.value})}
+                  />
                </div>
             </div>
 
@@ -1540,7 +1592,7 @@ export default function AdminDashboard() {
                       </div>
 
                       {/* Send and Standby Buttons */}
-                      <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                      <div style={{ display: 'flex', gap: '8px', width: '100%', marginBottom: '8px' }}>
                         <button
                           className="btn btn-sm"
                           style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', opacity: savingPromo === product.id ? 0.6 : 1 }}
@@ -1560,6 +1612,14 @@ export default function AdminDashboard() {
                           {sendingOffer === product.id ? '⏳ Enviando...' : '🚀 Enviar para Grupos'}
                         </button>
                       </div>
+                      
+                      <button
+                         className="btn btn-sm btn-delete"
+                         style={{ width: '100%', fontSize: '0.75rem', padding: '6px' }}
+                         onClick={() => handleBanProduct(product)}
+                      >
+                         🚫 Banir Produto / Palavra-Chave
+                      </button>
                     </div>
                   </div>
                 ))}

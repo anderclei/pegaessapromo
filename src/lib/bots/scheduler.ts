@@ -225,13 +225,15 @@ class PostScheduler {
       }
 
       // Explicit global rejection filter to ensure no bad words slip through from cached JSON or other platforms
-      const badWords = ['cabo', 'adaptador', 'fone com fio', 'fone intra-auricular com fio', 'capinha', 'película', 'carregador de parede'];
+      const defaultBadWords = ['cabo', 'adaptador', 'fone com fio', 'fone intra-auricular com fio', 'capinha', 'película', 'carregador de parede'];
+      const customForbidden = this._affiliateConfig.forbiddenWords || '';
+      const badWords = customForbidden.trim() ? customForbidden.split(',').map((w: string) => w.trim().toLowerCase()).filter(Boolean) : defaultBadWords;
 
       const filteredProducts = this._scraperQueue.filter(p => {
         if (whatsappBot.isProductAlreadyPosted(p.id)) return false;
         
         const titleLower = p.title.toLowerCase();
-        if (badWords.some(bw => titleLower.includes(bw))) return false;
+        if (badWords.some((bw: string) => titleLower.includes(bw))) return false;
         
         return true;
       });

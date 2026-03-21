@@ -302,11 +302,19 @@ export async function scrapeAmazon(category: string = 'todos', type: string = 'b
     }
 
     // Aplicar filtro de focado exclusivo do usuário (ignorar produtos ruins que não vendem)
-    const badWords = ['cabo', 'adaptador', 'fone com fio', 'fone intra-auricular com fio', 'capinha', 'película', 'carregador de parede'];
+    const defaultBadWords = ['cabo', 'adaptador', 'fone com fio', 'fone intra-auricular com fio', 'capinha', 'película', 'carregador de parede'];
+    let badWords = defaultBadWords;
+    try {
+      const { getSettings } = await import('../settings');
+      const settings = await getSettings();
+      if (settings && settings.forbiddenWords && settings.forbiddenWords.trim() !== '') {
+        badWords = settings.forbiddenWords.split(',').map((w: string) => w.trim().toLowerCase()).filter(Boolean);
+      }
+    } catch (e) {}
     
     let filteredProducts = products.filter(p => {
        const titleLower = p.title.toLowerCase();
-       return !badWords.some(bw => titleLower.includes(bw));
+       return !badWords.some((bw: string) => titleLower.includes(bw));
     });
 
     if (filteredProducts.length === 0) {
