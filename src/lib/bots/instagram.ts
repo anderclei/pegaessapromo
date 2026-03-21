@@ -31,6 +31,51 @@ class InstagramPoster {
       createdAt: new Date().toISOString(),
     };
 
+    // --- INSTAGRAM GRAPH API POSTING ---
+    const igAccountId = affiliateConfig.igAccountId;
+    const igToken = affiliateConfig.igAccessToken;
+
+    if (igAccountId && igToken && product.image) {
+       try {
+          const finalCaption = `${instaCopy.body}\n\n👉 Compre pelo link na Bio ou nos Stories!\n\n${instaCopy.hashtags}`;
+          
+          console.log(`[INSTAGRAM] Iniciando postagem na API Oficial para: ${product.title.substring(0, 30)}...`);
+          
+          // Step 1: Create Media Container for FEED
+          const mediaContainerRes = await fetch(`https://graph.facebook.com/v19.0/${igAccountId}/media?image_url=${encodeURIComponent(product.image)}&caption=${encodeURIComponent(finalCaption)}&access_token=${igToken}`, {
+             method: 'POST'
+          });
+          const mediaContainerData = await mediaContainerRes.json();
+          
+          if (mediaContainerData.error) {
+             throw new Error(mediaContainerData.error.message);
+          }
+          
+          const creationId = mediaContainerData.id;
+          
+          // Step 2: Publish Media Container
+          const publishRes = await fetch(`https://graph.facebook.com/v19.0/${igAccountId}/media_publish?creation_id=${creationId}&access_token=${igToken}`, {
+             method: 'POST'
+          });
+          const publishData = await publishRes.json();
+          
+          if (publishData.error) {
+             throw new Error(publishData.error.message);
+          }
+          
+          console.log(`[INSTAGRAM] Post publicado com sucesso! Post ID: ${publishData.id}`);
+          post.status = 'success';
+          post.message = `Publicado (ID: ${publishData.id})`;
+       } catch (e: any) {
+          console.error(`[INSTAGRAM] Erro ao postar:`, e);
+          post.status = 'error';
+          post.message = `Erro: ${e.message}`;
+       }
+    } else {
+       post.status = 'error';
+       post.message = 'Chaves do Instagram ausentes ou sem imagem';
+    }
+
     this._posts.unshift(post);
 
     // Keep only last 50 posts

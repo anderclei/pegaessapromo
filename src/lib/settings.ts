@@ -19,6 +19,8 @@ export interface AffiliateConfig {
   scheduleEndTime?: string;
   fixedWhatsAppGroups?: any[];
   forbiddenWords?: string;
+  igAccountId?: string;
+  igAccessToken?: string;
 }
 
 export async function getSettings(): Promise<AffiliateConfig | null> {

@@ -42,6 +42,8 @@ export interface InstagramPostData {
   imageUrl: string;
   affiliateLink: string;
   createdAt: string;
+  status?: 'success' | 'error' | 'pending';
+  message?: string;
 }
 
 export interface ScheduleConfig {

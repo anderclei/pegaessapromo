@@ -52,7 +52,9 @@ export default function AdminDashboard() {
     copyStyle: 'Copys bem humoradas, criativas, com emojis e gatilhos de urgência.',
     aiProvider: 'gemini' as 'gemini' | 'ollama',
     ollamaModel: '',
-    forbiddenWords: 'cabo, adaptador, fone com fio, fone intra-auricular com fio, capinha, película, carregador de parede'
+    forbiddenWords: 'cabo, adaptador, fone com fio, fone intra-auricular com fio, capinha, película, carregador de parede',
+    igAccountId: '',
+    igAccessToken: ''
   });
   const [saveStatus, setSaveStatus] = useState(false);
   
@@ -761,6 +763,31 @@ export default function AdminDashboard() {
                   <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '5px' }}>
                     Descreva como você quer que o Gemini escreva suas ofertas (humor, urgência, tom de voz, etc).
                   </p>
+               </div>
+            </div>
+
+            <div className="admin-card" style={{ marginTop: '2rem' }}>
+               <h3>📸 Integração Oficial: Instagram (API Graph)</h3>
+               <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem' }}>
+                 Para postar direto no Instagram sem ferramentas piratas, use tokens da API Oficial "Facebook for Developers".
+               </p>
+               <div className="form-field">
+                  <label style={{ color: '#333', fontWeight: 'bold' }}>Instagram Account ID (ig_user_id)</label>
+                  <input 
+                    type="text" placeholder="ID da sua conta Instagram vinculada"
+                    style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
+                    value={affiliateConfig.igAccountId || ''}
+                    onChange={e => setAffiliateConfig({...affiliateConfig, igAccountId: e.target.value})}
+                  />
+               </div>
+               <div className="form-field">
+                  <label style={{ color: '#333', fontWeight: 'bold' }}>Access Token (Longo Prazo)</label>
+                  <input 
+                    type="password" placeholder="Token gerado no painel de Sistema da Meta"
+                    style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
+                    value={affiliateConfig.igAccessToken || ''}
+                    onChange={e => setAffiliateConfig({...affiliateConfig, igAccessToken: e.target.value})}
+                  />
                </div>
             </div>
 
