@@ -261,7 +261,7 @@ IMPORTANTE:
             body: JSON.stringify({
               model: ollamaModel,
               prompt: richPrompt,
-              stream: false
+              stream: true // Usa stream para manter a conexão ativa e não dar Timeout no NextJS!
             })
           });
           
@@ -269,8 +269,25 @@ IMPORTANTE:
             const errTex = await res.text();
             throw new Error(`Erro Ollama [${res.status}]: ${errTex}`);
           }
-          const data = await res.json();
-          aiText = data.response;
+          
+          let aiStreamedText = '';
+          const reader = (res.body as any)?.getReader();
+          if (reader) {
+            const decoder = new TextDecoder();
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              const chunkStr = decoder.decode(value, { stream: true });
+              const lines = chunkStr.split('\n').filter(Boolean);
+              for (const line of lines) {
+                try {
+                  const chunkData = JSON.parse(line);
+                  if (chunkData.response) aiStreamedText += chunkData.response;
+                } catch(e) {}
+              }
+            }
+          }
+          aiText = aiStreamedText;
         } catch (err: any) {
           console.error('[COPY] Falha ao conectar no Ollama:', err.message);
           throw new Error(`⚠️ Erro com Ollama (${ollamaModel}): ${err.message}. Verifique se ele está aberto e se o seu computador não travou por limite de memória RAM (gerar textos locais demora de 2 a 5 minutos num PC comum!).`);
