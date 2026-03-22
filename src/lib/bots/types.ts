@@ -24,7 +24,7 @@ export interface WhatsAppGroup {
   name: string;
   participantsCount: number;
   isAdmin: boolean;
-  categories: GroupCategory[]; // categorias vinculadas a este grupo
+  categories: string[]; // categorias vinculadas a este grupo
 }
 
 export interface WhatsAppConfig {
