@@ -3,6 +3,12 @@ export const maxDuration = 20; // 20s max — evita timeout silencioso do Next.j
 
 import { NextResponse } from 'next/server';
 import { scrapeMercadoLivre } from '@/lib/scrapers/mercadolivre';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 import fs from 'fs';
 import path from 'path';
 
@@ -29,10 +35,28 @@ export async function GET(request: Request) {
       setTimeout(() => reject(new Error('ML API timeout após 15s')), 15000)
     );
 
-    const products = await Promise.race([
-      scrapeMercadoLivre(category, type),
-      timeoutPromise,
-    ]);
+    // Tenta buscar as ofertas já salvas no Banco pelo Bot Local (Fallback)
+    const { data: dbProducts, error: dbError } = await supabase
+      .from('products')
+      .select('*')
+      .eq('platform', 'mercadolivre')
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    let products = (dbProducts || []).map(p => ({
+      ...p.data,
+      id: p.id,
+      platform: 'mercadolivre'
+    }));
+
+    // Se o banco estiver vazio, tenta o scrape (pode falhar na Vercel)
+    if (products.length === 0) {
+      console.log('[ML API] Banco vazio, tentando scrape direto...');
+      products = await Promise.race([
+        scrapeMercadoLivre(category, type),
+        timeoutPromise,
+      ]);
+    }
 
     console.log(`[ML API SUCCESS] Found ${products.length} products for ${category}`);
     return NextResponse.json({ products, source: 'mercadolivre', type });
