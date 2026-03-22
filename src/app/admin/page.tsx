@@ -241,10 +241,36 @@ export default function AdminDashboard() {
         .sort((a: any, b: any) => (b.discount || 0) - (a.discount || 0))
         .slice(0, 30)
         .map((p: any) => {
-          // Generate static AIDA copy preview
           const price = p.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
           const disc = p.discount && p.discount > 0 ? ` com ${p.discount}% OFF` : '';
           const copy = `🚨 *OFERTA IMPERDÍVEL${disc}!*\n\n*${p.title}*\n\n💰 *${price}*\n⭐ ${(p.rating||0).toFixed(1)} (${p.reviews||0} avaliações)\n📦 +${(p.sales||0).toLocaleString('pt-BR')} vendidos\n${p.freeShipping ? '🚚 *FRETE GRÁTIS*\n' : ''}\n👇 Link no site`;
+          return { ...p, _copy: copy, _fetchedAt: new Date().toISOString() };
+        });
+      setOffers(products);
+    } catch (e) { console.error(e); }
+    setLoadingOffers(false);
+  };
+
+  const fetchOffersML = async () => {
+    setLoadingOffers(true);
+    try {
+      const res = await fetch('/api/mercadolivre?category=todos&type=super');
+      const data = await res.json();
+      
+      const uniqueIds = new Set();
+      const products = (data.products || [])
+        .filter((p: any) => {
+          if (!p.id || p.price <= 0) return false;
+          if (uniqueIds.has(p.id)) return false;
+          uniqueIds.add(p.id);
+          return true;
+        })
+        .sort((a: any, b: any) => (b.discount || 0) - (a.discount || 0))
+        .slice(0, 30)
+        .map((p: any) => {
+          const price = p.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+          const disc = p.discount && p.discount > 0 ? ` com ${p.discount}% OFF` : '';
+          const copy = `💛 *NOVIDADE MERCADO LIVRE${disc}!*\n\n*${p.title}*\n\n💰 *${price}*\n⚡ Envio Imediato Full\n${p.freeShipping ? '🚚 *FRETE GRÁTIS*\n' : ''}\n👇 Link no site`;
           return { ...p, _copy: copy, _fetchedAt: new Date().toISOString() };
         });
       setOffers(products);
@@ -1527,6 +1553,14 @@ export default function AdminDashboard() {
                   style={{ backgroundColor: '#d97706', color: 'white', border: 'none' }}
                 >
                   🚀 Forçar Varredura na Amazon
+                </button>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={fetchOffersML}
+                  disabled={loadingOffers}
+                  style={{ backgroundColor: '#fef08a', color: '#854d0e', border: 'none', fontWeight: 'bold' }}
+                >
+                  🤝 Ver Mercado Livre
                 </button>
               </div>
             </div>

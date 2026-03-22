@@ -86,10 +86,13 @@ export async function scrapeMercadoLivre(category: string = 'todos', type: strin
       headers['Authorization'] = `Bearer ${mlToken}`;
     }
 
+    console.log(`[ML] Fetching: ${url}`);
+    
     const { data } = await axios.get(url, {
       timeout: 10000,
       headers
     });
+    console.log(`[ML] Data received. Total results: ${data.results?.length || 0}`);
 
     if (!data.results || data.results.length === 0) {
       return [];
