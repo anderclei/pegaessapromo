@@ -15,14 +15,11 @@ export async function GET(request: Request) {
   try {
     const config = await getSettings();
     if (!config?.mercadolivreAppId || !config?.mercadolivreClientSecret) {
-      console.error('[ML Auth] Settings incomplete in DB:', { 
-        hasId: !!config?.mercadolivreAppId, 
-        hasSecret: !!config?.mercadolivreClientSecret,
-        keysFound: Object.keys(config || {}) 
-      });
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'Não configurada';
       return NextResponse.json({ 
         error: 'Configurações do Mercado Livre incompletas no banco compartilhado',
-        details: `ID: ${!!config?.mercadolivreAppId}, Secret: ${!!config?.mercadolivreClientSecret}` 
+        details: `ID: ${!!config?.mercadolivreAppId}, Secret: ${!!config?.mercadolivreClientSecret}`,
+        databaseUrl: supabaseUrl.substring(0, 20) + '...'
       }, { status: 500 });
     }
 
