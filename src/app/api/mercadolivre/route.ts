@@ -34,12 +34,18 @@ export async function GET(request: Request) {
       timeoutPromise,
     ]);
 
+    console.log(`[ML API SUCCESS] Found ${products.length} products for ${category}`);
     return NextResponse.json({ products, source: 'mercadolivre', type });
 
   } catch (error: any) {
     const isAuthRequired = error.message?.includes('AUTH_REQUIRED');
     
-    console.error('[ML Route] Erro:', error.message);
+    console.error('[ML API ERROR DETAILED]:', {
+      message: error.message,
+      stack: error.stack,
+      category,
+      type
+    });
 
     if (isAuthRequired) {
       return NextResponse.json(

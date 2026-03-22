@@ -114,14 +114,14 @@ export async function scrapeMercadoLivre(category: string = 'todos', type: strin
   try {
     // Buscar produtos
     const searchQueries = [
-      { q: 'oferta relâmpago', sort: 'relevance' },
-      { q: 'mais vendido promoção', sort: 'sold_quantity_desc' },
-      { q: 'desconto especial', sort: 'relevance' },
+      { q: 'ofertas', sort: 'relevance' },
+      { q: 'promoção', sort: 'relevance' },
+      { q: 'desconto', sort: 'relevance' },
     ];
     const chosen = searchQueries[Math.floor(Math.random() * searchQueries.length)];
-    const apiUrl = `https://api.mercadolibre.com/sites/MLB/search?q=${encodeURIComponent(chosen.q)}&sort=${chosen.sort}&limit=50&condition=new`;
+    const apiUrl = `https://api.mercadolibre.com/sites/MLB/search?q=${encodeURIComponent(chosen.q)}&limit=50`;
 
-    console.log(`[ML API] 🔍 Buscando com token: ${apiUrl.substring(0, 80)}...`);
+    console.log(`[ML API] 🔍 Buscando: ${chosen.q} com token: ${token.substring(0, 10)}...`);
 
     const { data } = await axios.get(apiUrl, {
       headers: {
