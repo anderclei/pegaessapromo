@@ -49,7 +49,7 @@ export async function GET(request: Request) {
 
     if (isAuthRequired) {
       return NextResponse.json(
-        { products: [], error: 'auth_required', message: '⚠️ Mercado Livre Bloqueado (403). Você precisa autorizar o aplicativo no painel admin primeiro.' },
+        { products: [], error: 'auth_required', message: error.message },
         { status: 403 }
       );
     }
