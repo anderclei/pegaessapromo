@@ -3,12 +3,7 @@ export const maxDuration = 20; // 20s max — evita timeout silencioso do Next.j
 
 import { NextResponse } from 'next/server';
 import { scrapeMercadoLivre } from '@/lib/scrapers/mercadolivre';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { supabase } from '@/lib/supabase';
 import fs from 'fs';
 import path from 'path';
 
