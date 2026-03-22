@@ -44,6 +44,8 @@ export default function AdminDashboard() {
     shopeeId: '',
     aliexpressId: '',
     mercadolivreId: '', 
+    mercadolivreAppId: '',
+    mercadolivreClientSecret: '',
     lomadeeId: '',
     awinId: '',
     rakutenId: '',
@@ -706,6 +708,40 @@ export default function AdminDashboard() {
                     style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
                     value={affiliateConfig.amazonSecretKey}
                     onChange={e => setAffiliateConfig({...affiliateConfig, amazonSecretKey: e.target.value})}
+                  />
+               </div>
+            </div>
+
+            <div className="admin-card" style={{ marginTop: '2rem', borderTop: '4px solid #fef08a' }}>
+               <h3>🤝 Colaborador: Mercado Livre (API Oficial)</h3>
+               <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem' }}>
+                 Suas credenciais recém-criadas no Mercado Livre Developers. Elas desbloqueiam a busca imune a bloqueios.
+               </p>
+               <div className="form-field">
+                  <label style={{ color: '#333', fontWeight: 'bold' }}>Application ID (App ID ou Client ID)</label>
+                  <input 
+                    type="text" placeholder="Ex: 85938481923..."
+                    style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
+                    value={affiliateConfig.mercadolivreAppId || ''}
+                    onChange={e => setAffiliateConfig({...affiliateConfig, mercadolivreAppId: e.target.value})}
+                  />
+               </div>
+               <div className="form-field">
+                  <label style={{ color: '#333', fontWeight: 'bold' }}>Chave Secreta (Client Secret)</label>
+                  <input 
+                    type="password" placeholder="Cole sua Client Secret gerada no painel"
+                    style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
+                    value={affiliateConfig.mercadolivreClientSecret || ''}
+                    onChange={e => setAffiliateConfig({...affiliateConfig, mercadolivreClientSecret: e.target.value})}
+                  />
+               </div>
+               <div className="form-field">
+                  <label style={{ color: '#333', fontWeight: 'bold' }}>Sua Tag de Afiliado (Ex: seu-id-20)</label>
+                  <input 
+                    type="text" placeholder="Use se for gerar deep-link de afiliados manual"
+                    style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
+                    value={affiliateConfig.mercadolivreId || ''}
+                    onChange={e => setAffiliateConfig({...affiliateConfig, mercadolivreId: e.target.value})}
                   />
                </div>
             </div>

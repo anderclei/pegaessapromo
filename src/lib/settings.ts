@@ -2,6 +2,8 @@ import { supabase } from './supabase';
 
 export interface AffiliateConfig {
   mercadolivreId: string;
+  mercadolivreAppId?: string;
+  mercadolivreClientSecret?: string;
   shopeeId: string;
   aliexpressId: string;
   amazonId: string;
