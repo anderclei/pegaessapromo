@@ -60,7 +60,6 @@ export default function AdminDashboard() {
   });
   const [saveStatus, setSaveStatus] = useState(false);
   const [activeAccordion, setActiveAccordion] = useState<string>('amazon');
-  const [saveStatus, setSaveStatus] = useState(false);
   
   // Categories State
   const [dbCategories, setDbCategories] = useState<{id: string, label: string, amazonSlug?: string}[]>([]);
@@ -698,9 +697,9 @@ export default function AdminDashboard() {
             display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto', padding: '0 15px', 
             background: '#f8fafc', borderRadius: '20px', border: '1px solid #e2e8f0', height: '36px' 
           }}>
-             <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: botStatus === 'connected' ? '#22c55e' : (botStatus === 'waiting_qr' ? '#eab308' : '#ef4444') }}></div>
+             <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: botStatus === 'connected' ? '#22c55e' : (botStatus === 'qr_ready' ? '#eab308' : '#ef4444') }}></div>
              <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', whiteSpace: 'nowrap' }}>
-               {botStatus === 'connected' ? 'Zap Conectado' : (botStatus === 'waiting_qr' ? 'Aguardando QR' : 'Zap Desconectado')}
+               {botStatus === 'connected' ? 'Zap Conectado' : (botStatus === 'qr_ready' ? 'Aguardando QR' : 'Zap Desconectado')}
              </span>
           </div>
         </div>
@@ -719,7 +718,14 @@ export default function AdminDashboard() {
 
             <div className="admin-card" style={{ cursor: 'pointer', padding: '15px 25px', backgroundColor: activeAccordion === 'amazon' ? '#fffbeb' : '#fff' }} onClick={() => setActiveAccordion(activeAccordion === 'amazon' ? '' : 'amazon')}>
                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                 <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1e293b' }}>🛒 Amazon (Afiliados)</h3>
+                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                   <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1e293b' }}>🛒 Amazon (Afiliados)</h3>
+                   {affiliateConfig.amazonId && affiliateConfig.amazonAccessKey ? (
+                     <span style={{ fontSize: '0.7rem', background: '#dcfce7', color: '#166534', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>🟢 Online</span>
+                   ) : (
+                     <span style={{ fontSize: '0.7rem', background: '#fee2e2', color: '#991b1b', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>🔴 Incompleto</span>
+                   )}
+                 </div>
                  <span>{activeAccordion === 'amazon' ? '▲' : '▼'}</span>
                </div>
                
@@ -761,7 +767,14 @@ export default function AdminDashboard() {
 
             <div className="admin-card" style={{ marginTop: '1rem', cursor: 'pointer', padding: '15px 25px', backgroundColor: activeAccordion === 'mercadolivre' ? '#fef08a' : '#fff' }} onClick={() => setActiveAccordion(activeAccordion === 'mercadolivre' ? '' : 'mercadolivre')}>
                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                 <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1e293b' }}>🤝 Mercado Livre (API Oficial)</h3>
+                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                   <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1e293b' }}>🤝 Mercado Livre (API Oficial)</h3>
+                   {affiliateConfig.mercadolivreAppId && affiliateConfig.mercadolivreClientSecret ? (
+                     <span style={{ fontSize: '0.7rem', background: '#dcfce7', color: '#166534', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>🟢 Online</span>
+                   ) : (
+                     <span style={{ fontSize: '0.7rem', background: '#fee2e2', color: '#991b1b', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>🔴 Incompleto</span>
+                   )}
+                 </div>
                  <span>{activeAccordion === 'mercadolivre' ? '▲' : '▼'}</span>
                </div>
 
@@ -803,7 +816,14 @@ export default function AdminDashboard() {
 
             <div className="admin-card" style={{ marginTop: '1rem', cursor: 'pointer', padding: '15px 25px', backgroundColor: activeAccordion === 'ia' ? '#f0fdf4' : '#fff' }} onClick={() => setActiveAccordion(activeAccordion === 'ia' ? '' : 'ia')}>
                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                 <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1e293b' }}>🤖 Inteligência Artificial (Copys)</h3>
+                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                   <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1e293b' }}>🤖 Inteligência Artificial (Copys)</h3>
+                   {(affiliateConfig.aiProvider === 'ollama' && affiliateConfig.ollamaModel) || (affiliateConfig.aiProvider === 'gemini' && affiliateConfig.geminiKey) || (!affiliateConfig.aiProvider && affiliateConfig.geminiKey) ? (
+                     <span style={{ fontSize: '0.7rem', background: '#dcfce7', color: '#166534', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>🟢 Online</span>
+                   ) : (
+                     <span style={{ fontSize: '0.7rem', background: '#fee2e2', color: '#991b1b', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>🔴 Incompleto</span>
+                   )}
+                 </div>
                  <span>{activeAccordion === 'ia' ? '▲' : '▼'}</span>
                </div>
                
@@ -867,7 +887,14 @@ export default function AdminDashboard() {
 
             <div className="admin-card" style={{ marginTop: '1rem', cursor: 'pointer', padding: '15px 25px', backgroundColor: activeAccordion === 'instagram' ? '#fdf4ff' : '#fff' }} onClick={() => setActiveAccordion(activeAccordion === 'instagram' ? '' : 'instagram')}>
                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                 <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1e293b' }}>📸 Integração Instagram (API Graph)</h3>
+                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                   <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1e293b' }}>📸 Integração Instagram (API Graph)</h3>
+                   {affiliateConfig.igAccountId && affiliateConfig.igAccessToken ? (
+                     <span style={{ fontSize: '0.7rem', background: '#dcfce7', color: '#166534', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>🟢 Online</span>
+                   ) : (
+                     <span style={{ fontSize: '0.7rem', background: '#e2e8f0', color: '#475569', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>⚪ Inativo</span>
+                   )}
+                 </div>
                  <span>{activeAccordion === 'instagram' ? '▲' : '▼'}</span>
                </div>
                

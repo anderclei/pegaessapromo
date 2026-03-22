@@ -5,7 +5,7 @@ import { Product } from '../types';
 import { scrapeMercadoLivre } from '../scrapers/mercadolivre';
 import { scrapeShopee } from '../scrapers/shopee';
 import { scrapeAmazon } from '../scrapers/amazon';
-import { generateAllCopies } from '../copywriter';
+import { generateAllCopies, buildAffiliateLink } from '../copywriter';
 import { getSettings } from '../settings';
 import { loadHotProducts, saveHotProducts } from '../promotions';
 import { gitPush } from '../git';
@@ -272,8 +272,8 @@ class PostScheduler {
           // Pre-generate copies for these specific products to be posted
           console.log(`🧠 Gerando copies para ${productsToPost.length} produtos do ciclo...`);
           for (const p of productsToPost) {
-             const finalSiteUrl = config.siteUrl?.replace(/\/$/, '') || '';
-             const siteLink = finalSiteUrl ? `${finalSiteUrl}/p/${p.id}` : p.url;
+             const affiliateProductLink = buildAffiliateLink(p, config);
+             const siteLink = affiliateProductLink;
              
              try {
                 const copies = await generateAllCopies(p, siteLink, config);

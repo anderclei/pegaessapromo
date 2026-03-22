@@ -196,16 +196,10 @@ class WhatsAppBot {
         }
       }
 
-      // 1. Build the affiliate link and the site link first (since ID is now deterministic)
       const affiliateProductLink = buildAffiliateLink(product, config);
       const promotionId = product.id; // Deterministic ID
       
-      let finalSiteUrl = config.siteUrl || '';
-      if (finalSiteUrl.endsWith('/')) finalSiteUrl = finalSiteUrl.slice(0, -1);
-      
-      const siteLink = finalSiteUrl
-        ? `${finalSiteUrl}/p/${promotionId}`
-        : affiliateProductLink;
+      const siteLink = affiliateProductLink;
 
       // 2. Generate or use pre-generated creative copy BEFORE saving to DB
       let messageBody = '';

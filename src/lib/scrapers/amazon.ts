@@ -53,33 +53,12 @@ const CATEGORY_MAP: Record<string, string> = {
 
 export async function scrapeAmazon(category: string = 'todos', type: string = 'bestsellers', amazonSlug?: string): Promise<Product[]> {
   try {
-    let url = 'https://www.amazon.com.br/gp/bestsellers/';
-    
-    // Se for super ofertas e a categoria for 'todos', sorteamos uma categoria aleatória 
-    // para garantir MUITA variedade a cada nova busca!
-    let searchCategory = category;
-    let amazonCat = amazonSlug || CATEGORY_MAP[category] || 'electronics';
-    
-    if (type === 'super') {
-      if (category === 'todos' || !category) {
-        const catKeys = Object.keys(CATEGORY_MAP).filter(k => k !== 'todos');
-        searchCategory = catKeys[Math.floor(Math.random() * catKeys.length)];
-        amazonCat = CATEGORY_MAP[searchCategory] || 'electronics';
-      }
-      // Puxa a lista de 'Movers and Shakers' (produtos que mais subiram nas vendas)
-      // dessa categoria sorteada, pois geralmente são os que entraram em super promoção.
-      url = `https://www.amazon.com.br/gp/movers-and-shakers/${amazonCat}/`;
-    } else if (type === 'lightning') {
-      url = 'https://www.amazon.com.br/deals?ref_=nav_cs_gb';
-    } else if (type === 'new-releases') {
-      url = `https://www.amazon.com.br/gp/new-releases/${amazonCat}/`;
-    } else if (type === 'movers-and-shakers') {
-      url = `https://www.amazon.com.br/gp/movers-and-shakers/${amazonCat}/`;
-    } else if (type === 'most-wished-for') {
-      url = `https://www.amazon.com.br/gp/most-wished-for/${amazonCat}/`;
-    } else {
-      url = `https://www.amazon.com.br/gp/bestsellers/${amazonCat}/`;
-    }
+    // Usuário solicitou restrição EXCLUSIVA para estes dois grupos na Amazon
+    const allowedUrls = [
+      'https://www.amazon.com.br/gp/bestsellers/electronics/ref=zg_bs_nav_electronics_0',
+      'https://www.amazon.com.br/gp/bestsellers/electronics/16243797011/ref=zg_bs_nav_electronics_1'
+    ];
+    const url = allowedUrls[Math.floor(Math.random() * allowedUrls.length)];
     
     const { data } = await axios.get(url, {
       headers: {

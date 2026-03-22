@@ -59,15 +59,9 @@ export async function POST(request: Request) {
           try {
             const config = await import('@/lib/settings').then(m => m.getSettings());
             const mergedConfig = { ...affiliateConfig, ...config };
-            const finalSiteUrl = mergedConfig.siteUrl?.replace(/\/$/, '') || 'https://tempromo.app.br';
-            let siteLink = `${finalSiteUrl}/p/${body.singleProduct.id}`;
-            // If amazon platform, add tag
-            let affiliateLink = body.singleProduct.url || '';
-            if (affiliateLink.includes('amazon') && mergedConfig.amazonId) {
-              const sym = affiliateLink.includes('?') ? '&' : '?';
-              if (!affiliateLink.includes('tag=')) affiliateLink += `${sym}tag=${mergedConfig.amazonId}`;
-              if (!mergedConfig.siteUrl) siteLink = affiliateLink; // Use affiliate link ONLY if siteUrl is truly empty
-            }
+            const copywriter = await import('@/lib/copywriter');
+            const affiliateLink = copywriter.buildAffiliateLink(body.singleProduct, mergedConfig);
+            const siteLink = affiliateLink;
 
             const copies = await import('@/lib/copywriter').then(m => m.generateAllCopies(body.singleProduct, siteLink, mergedConfig));
             const waBody = copies['aida']?.find((c: any) => c.platform === 'whatsapp')?.body || '';
@@ -88,14 +82,9 @@ export async function POST(request: Request) {
           try {
             const config = await import('@/lib/settings').then(m => m.getSettings());
             const mergedConfig = { ...affiliateConfig, ...config };
-            const finalSiteUrl = mergedConfig.siteUrl?.replace(/\/$/, '') || 'https://tempromo.app.br';
-            let siteLink = `${finalSiteUrl}/p/${body.singleProduct.id}`;
-            let affiliateLink = body.singleProduct.url || '';
-            if (affiliateLink.includes('amazon') && mergedConfig.amazonId) {
-              const sym = affiliateLink.includes('?') ? '&' : '?';
-              if (!affiliateLink.includes('tag=')) affiliateLink += `${sym}tag=${mergedConfig.amazonId}`;
-              if (!mergedConfig.siteUrl) siteLink = affiliateLink; // Use affiliate link ONLY if siteUrl is truly empty
-            }
+            const copywriter = await import('@/lib/copywriter');
+            const affiliateLink = copywriter.buildAffiliateLink(body.singleProduct, mergedConfig);
+            const siteLink = affiliateLink;
 
             if (!mergedConfig.geminiKey) {
               return NextResponse.json({ success: false, message: 'Chave do Gemini (AI) não configurada! Vá na aba "Config. Globais" do painel e salve sua chave.' });
