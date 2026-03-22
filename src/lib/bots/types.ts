@@ -30,7 +30,7 @@ export interface WhatsAppGroup {
 export interface WhatsAppConfig {
   enabled: boolean;
   groups: string[]; // group IDs selecionados
-  template: 'aida' | 'pas' | 'bab';
+  template: 'aida' | 'pas' | 'bab' | 'short';
   intervalMinutes: number;
 }
 
@@ -49,7 +49,7 @@ export interface InstagramPostData {
 export interface ScheduleConfig {
   enabled: boolean;
   intervalMinutes: number;
-  template: 'aida' | 'pas' | 'bab';
+  template: 'aida' | 'pas' | 'bab' | 'short';
   platforms: {
     whatsapp: boolean;
     instagram: boolean;

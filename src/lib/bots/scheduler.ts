@@ -14,7 +14,7 @@ class PostScheduler {
   private _config: ScheduleConfig = {
     enabled: false,
     intervalMinutes: 60,
-    template: 'aida',
+    template: 'short',
     platforms: {
       whatsapp: true,
       instagram: true,
@@ -165,40 +165,52 @@ class PostScheduler {
           .flat();
       
       const uniqueCategories = Array.from(new Set(categories));
+      const enabledSources = this._affiliateConfig.enabledSources || { amazon: true, mercadolivre: true, shopee: true };
       
-      // Always include real-time Lightning Deals for maximum freshness
-      console.log('⚡ [SYNC] Buscando Ofertas Relâmpago em tempo real...');
-      try {
-        const lightning = await scrapeAmazon('todos', 'lightning');
-        allProducts.push(...lightning);
-      } catch (e) {}
-
-      for (const cat of uniqueCategories) {
-        console.log(`🔍 [SYNC] Buscando ofertas frescas para: ${cat}...`);
+      // Amazon scraping (if enabled)
+      if (enabledSources.amazon !== false) {
+        console.log('⚡ [SYNC] Buscando Ofertas Relâmpago Amazon em tempo real...');
         try {
-          const products = await scrapeAmazon(cat, 'bestsellers');
-          allProducts.push(...products);
+          const lightning = await scrapeAmazon('todos', 'lightning');
+          allProducts.push(...lightning);
         } catch (e) {}
+
+        for (const cat of uniqueCategories) {
+          console.log(`🔍 [SYNC] Buscando ofertas Amazon frescas para: ${cat}...`);
+          try {
+            const products = await scrapeAmazon(cat, 'bestsellers');
+            allProducts.push(...products);
+          } catch (e) {}
+        }
+
+        // Supplement with cached Amazon data
+        try {
+          hotData = await loadHotProducts();
+          if (hotData) {
+            const amzEletronicos = hotData['eletronicos'] || [];
+            const amzGerais = hotData['ofertas_gerais'] || [];
+            allProducts = [...allProducts, ...amzEletronicos, ...amzGerais];
+          }
+        } catch (e) {}
+      } else {
+        console.log('⏭️ [SYNC] Amazon desativada nas configurações. Pulando...');
       }
 
-      // Supplement with cached data to avoid empty runs
-      try {
-        hotData = await loadHotProducts();
-        if (hotData) {
-          const amzEletronicos = hotData['eletronicos'] || [];
-          const amzGerais = hotData['ofertas_gerais'] || [];
-          allProducts = [...allProducts, ...amzEletronicos, ...amzGerais];
-        }
-      } catch (e) {}
-
-      // Supplement with other platforms
-      try {
-        const [ml, shp] = await Promise.all([
-          scrapeMercadoLivre('todos').catch(() => []),
-          scrapeShopee('todos').catch(() => [])
-        ]);
-        allProducts.push(...ml, ...shp);
-      } catch (e) {}
+      // Mercado Livre & Shopee (if enabled)
+      const mlEnabled = enabledSources.mercadolivre !== false;
+      const shopeeEnabled = enabledSources.shopee !== false;
+      if (mlEnabled || shopeeEnabled) {
+        try {
+          const toFetch: Promise<Product[]>[] = [];
+          if (mlEnabled) toFetch.push(scrapeMercadoLivre('todos').catch(() => []));
+          if (shopeeEnabled) toFetch.push(scrapeShopee('todos').catch(() => []));
+          const results = await Promise.all(toFetch);
+          results.forEach(r => allProducts.push(...r));
+        } catch (e) {}
+      } else {
+        if (!mlEnabled) console.log('⏭️ [SYNC] Mercado Livre desativado nas configurações. Pulando...');
+        if (!shopeeEnabled) console.log('⏭️ [SYNC] Shopee desativada nas configurações. Pulando...');
+      }
 
       // Filter for "imperdíveis": High discount (15%+) or special deal types
       allProducts = allProducts.filter(p => {

@@ -23,6 +23,11 @@ export interface AffiliateConfig {
   forbiddenWords?: string;
   igAccountId?: string;
   igAccessToken?: string;
+  enabledSources?: {
+    amazon?: boolean;
+    mercadolivre?: boolean;
+    shopee?: boolean;
+  };
 }
 
 export async function getSettings(): Promise<AffiliateConfig | null> {

@@ -165,7 +165,7 @@ class WhatsAppBot {
   async sendToGroup(
     groupId: string,
     product: Product,
-    template: 'aida' | 'pas' | 'bab',
+    template: 'aida' | 'pas' | 'bab' | 'short',
     affiliateConfig: any
   ): Promise<PostLog> {
     const log: PostLog = {

@@ -13,6 +13,33 @@ function calcDiscount(product: Product): string {
   return '';
 }
 
+// ── SHORT (Simple CTA) ──────────────────────────────────────────
+function generateSHORT(product: Product, affiliateLink: string): CopyResult[] {
+  const priceText = formatPrice(product.price);
+  return [
+    {
+      platform: 'whatsapp',
+      title: '💬 Copy para WhatsApp (CURTA)',
+      body: `🔥 *${product.title}*\n\n` +
+        `💰 *${priceText}*\n` +
+        `${product.freeShipping ? '🚚 *FRETE GRÁTIS*\n' : ''}\n` +
+        `🛒 *Compre aqui:*\n${affiliateLink}`,
+      hashtags: '',
+      affiliateLink,
+    },
+    {
+      platform: 'instagram',
+      title: '📸 Copy para Instagram (CURTA)',
+      body: `🔥 ${product.title}\n` +
+        `💰 Por apenas ${priceText}\n` +
+        `🚚 ${product.freeShipping ? 'Frete grátis!' : 'Garanta o seu!'}\n\n` +
+        `🔗 Link na bio: ${affiliateLink}`,
+      hashtags: '#achados #desconto #oferta',
+      affiliateLink,
+    }
+  ];
+}
+
 // ── AIDA (Attention, Interest, Desire, Action) ──────────────────────
 function generateAIDA(product: Product, affiliateLink: string): CopyResult[] {
   const discount = calcDiscount(product);
@@ -207,6 +234,7 @@ export async function generateAllCopies(product: Product, affiliateLink: string,
     aida: generateAIDA(product, affiliateLink),
     pas: generatePAS(product, affiliateLink),
     bab: generateBAB(product, affiliateLink),
+    short: generateSHORT(product, affiliateLink),
   };
 
   // If Gemini AI is configured, generate dynamic super-persuasive copies to replace the static ones
@@ -220,34 +248,9 @@ export async function generateAllCopies(product: Product, affiliateLink: string,
       const priceText = formatPrice(product.price);
       const oldPriceText = product.originalPrice && product.originalPrice > product.price ? formatPrice(product.originalPrice) : '';
 
-      const richPrompt = `Escreva uma copy para WhatsApp de oferta de um produto.
-
+      const richPrompt = `Escreva uma copy CURTA e DIRETA para WhatsApp para este produto.
+    
 🔥 REGRAS:
-- Seja extremamente energético e persuasivo.
-- Crie uma MANCHETE INOVADORA e chamativa no topo.
-- Fale sobre o produto de forma natural e resumida (NÃO engula o título gigante).
-- Se não houver "PREÇO ANTIGO" nos dados, NÃO INVENTE UM. Apenas diga o preço atual!
-- NÃO COPIE os exemplos abaixo palavra por palavra.
-
-Exemplo de tom de voz 1:
-🚨⚡🔥 O PATRÃO ENDOIDOU DE VEZ! 🔥⚡🚨
-Vocês não vão acreditar no preço dessa Smart TV Samsung! 🤯 O patrão mandou zerar o estoque hoje!
-De R$ 2.500,00 por APENAS R$ 1.899,00! 😱 São 24% OFF e ainda com FRETE GRÁTIS pra VOCÊ! 🚀 Adeus TV velha!
-ESTOQUE AQUECIDO! 💨
-👇 COMPRE AGORA:
-https://exemplo.link
-
-Exemplo de tom de voz 2 (Para produtos sem preço antigo informado):
-🔥🚨⚡ OFERTA RELÂMPAGO! ⚡🚨🔥
-MEU DEUS! 😱 Encontramos esse Jogo de Panelas Tramontina completasso por um preço ridículo de barato! APENAS R$ 252,00 na promoção! 🤯 E o melhor? FRETE GRÁTIS! 🚚 
-As unidades estão VOANDO!
-👇 COMPRE AGORA:
-https://exemplo.link
-
-Agora é a SUA vez de criar a copy para o PRODUTO ABAIXO. 
-MANCHETE INÉDITA! Aja naturalmente:
-
-PRODUTO DA OFERTA: "${product.title}"
 PREÇO ATUAL: ${priceText} (ESCREVA EXATAMENTE ASSIM)
 ${oldPriceText ? `PREÇO ANTIGO: ${oldPriceText}` : ''}
 ${discount ? `DESCONTO NA LOJA: ${discount}` : ''}
@@ -366,13 +369,24 @@ IMPORTANTE FINAL: A copy DEVE terminar EXATAMENTE com "👇 COMPRE AGORA:" e SEM
 export function buildAffiliateLink(product: Product, config: any): string {
   const separator = product.url.includes('?') ? '&' : '?';
   
+  if (product.platform === 'amazon') {
+    if (config.amazonId) {
+      // Remove link lixo da amazon e bota a tag limpa
+      const baseUrl = product.url.split('?')[0];
+      return `${baseUrl}?tag=${config.amazonId}`;
+    }
+    return product.url;
+  }
+  
   if (product.platform === 'mercadolivre') {
+    // Para o ML, precisamos garantir que o link NÃO seja o encurtado se quisermos tag de afiliado direta
     if (config.mercadolivreId) {
-      return `${product.url}${separator}matt_tool=&matt_word=&matt_source=&matt_campaign_id=&matt_ad_group_id=&matt_match_type=&matt_network=&matt_device=&matt_creative=&matt_keyword=&matt_ad_position=&matt_ad_type=&matt_merchant_id=&matt_product_id=&matt_product_partition_id=&matt_target_id=&tracking_id=${config.mercadolivreId}`;
+       const baseUrl = product.url.split('?')[0];
+       return `${baseUrl}?matt_tool=&tracking_id=${config.mercadolivreId}`;
     }
     return product.url;
   } 
-  
+
   if (product.platform === 'shopee') {
     if (config.shopeeId) {
       return `${product.url}${separator}af_id=${config.shopeeId}`;
@@ -383,13 +397,6 @@ export function buildAffiliateLink(product: Product, config: any): string {
   if (product.platform === 'aliexpress') {
     if (config.aliexpressId) {
       return `${product.url}${separator}tracking_id=${config.aliexpressId}`;
-    }
-    return product.url;
-  }
-
-  if (product.platform === 'amazon') {
-    if (config.amazonId) {
-      return `${product.url}${separator}tag=${config.amazonId}`;
     }
     return product.url;
   }
@@ -419,6 +426,7 @@ export function buildAffiliateLink(product: Product, config: any): string {
 }
 
 export const COPY_TEMPLATES = [
+  { id: 'short', name: 'Curta (CTA)', description: 'Copy direta focado no CTA', icon: '⚡' },
   { id: 'aida', name: 'AIDA', description: 'Atenção → Interesse → Desejo → Ação', icon: '🎯' },
   { id: 'pas', name: 'PAS', description: 'Problema → Agitação → Solução', icon: '💡' },
   { id: 'bab', name: 'BAB', description: 'Antes → Depois → Ponte', icon: '🌉' },

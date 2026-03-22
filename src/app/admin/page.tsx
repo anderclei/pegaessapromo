@@ -56,7 +56,8 @@ export default function AdminDashboard() {
     ollamaModel: '',
     forbiddenWords: 'cabo, adaptador, fone com fio, fone intra-auricular com fio, capinha, película, carregador de parede',
     igAccountId: '',
-    igAccessToken: ''
+    igAccessToken: '',
+    enabledSources: { amazon: true, mercadolivre: false, shopee: false } as { amazon?: boolean; mercadolivre?: boolean; shopee?: boolean }
   });
   const [saveStatus, setSaveStatus] = useState(false);
   const [activeAccordion, setActiveAccordion] = useState<string>('amazon');
@@ -381,6 +382,7 @@ export default function AdminDashboard() {
           action: 'generate-copy-only',
           affiliateConfig,
           singleProduct: product,
+          config: { template }
         })
       });
       const data = await res.json();
@@ -713,6 +715,52 @@ export default function AdminDashboard() {
               <div className="admin-title-section">
                 <h2>⚙️ Configurações do Sistema</h2>
                 <p>Gerencie suas chaves de afiliado e integrações com Inteligência Artificial.</p>
+              </div>
+            </div>
+
+
+            {/* ── Fontes de Ofertas ── */}
+            <div className="admin-card" style={{ marginBottom: '1.5rem', border: '2px solid #e2e8f0' }}>
+              <h3 style={{ marginBottom: '0.5rem' }}>🔌 Fontes de Ofertas Ativas</h3>
+              <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '1.2rem' }}>
+                Ative ou desative de qual plataforma o robô vai buscar ofertas. Desative as que não estão funcionando.
+              </p>
+              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                {[
+                  { key: 'amazon',        label: '🛒 Amazon',         color: '#f59e0b' },
+                  { key: 'mercadolivre',  label: '🤝 Mercado Livre',  color: '#fbbf24' },
+                  { key: 'shopee',        label: '🛍️ Shopee',         color: '#f97316' },
+                ].map(({ key, label, color }) => {
+                  const enabled = affiliateConfig.enabledSources?.[key as 'amazon' | 'mercadolivre' | 'shopee'] !== false;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => {
+                        const current = affiliateConfig.enabledSources || { amazon: true, mercadolivre: true, shopee: true };
+                        setAffiliateConfig({ ...affiliateConfig, enabledSources: { ...current, [key]: !enabled } });
+                      }}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '10px',
+                        padding: '10px 18px', borderRadius: '50px', cursor: 'pointer', border: '2px solid',
+                        borderColor: enabled ? color : '#e2e8f0',
+                        background: enabled ? `${color}18` : '#f8fafc',
+                        fontWeight: 'bold', fontSize: '0.88rem', color: enabled ? '#1e293b' : '#94a3b8',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <div style={{
+                        width: 14, height: 14, borderRadius: '50%',
+                        background: enabled ? color : '#cbd5e1',
+                        boxShadow: enabled ? `0 0 6px ${color}` : 'none',
+                        transition: 'all 0.2s'
+                      }} />
+                      {label}
+                      <span style={{ fontSize: '0.72rem', fontWeight: 'normal', color: enabled ? color : '#94a3b8' }}>
+                        {enabled ? 'ATIVO' : 'DESATIVADO'}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -1185,6 +1233,20 @@ export default function AdminDashboard() {
                       <option value={60}>A cada 1 hora</option>
                       <option value={120}>A cada 2 horas</option>
                       <option value={240}>A cada 4 horas</option>
+                    </select>
+                  </div>
+
+                  <div className="form-field">
+                    <label style={{ color: '#333', fontWeight: 'bold' }}>Estilo de Cópia (Copy)</label>
+                    <select 
+                      value={template} 
+                      onChange={e => setTemplate(e.target.value as any)}
+                      style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc', padding: '8px', borderRadius: '8px' }}
+                    >
+                      <option value="short">Curta (CTA + Direta)</option>
+                      <option value="aida">AIDA (Persuasão Máxima)</option>
+                      <option value="pas">PAS (Foco na Dor)</option>
+                      <option value="bab">BAB (Antes/Depois)</option>
                     </select>
                   </div>
 
