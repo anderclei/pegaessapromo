@@ -123,8 +123,23 @@ export async function scrapeMercadoLivre(category: string = 'todos', type: strin
     });
 
     return products;
-  } catch (error) {
-    console.error(`Erro ao buscar Mercado Livre (${type}):`, error);
-    return [];
+  } catch (error: any) {
+    console.error(`Erro ao buscar Mercado Livre (${type}):`, error.response?.data || error);
+    const errorMessage = error.response?.data ? JSON.stringify(error.response.data) : error.message;
+    return [{
+        id: 'ERRO-API',
+        title: `⚠️ Erro do Mercado Livre: ${errorMessage}. Cole isso pro desenvolvedor!`,
+        price: 0,
+        image: 'https://placehold.co/300x300/ff0000/ffffff?text=ERRO+ML',
+        rating: 0,
+        sales: 0,
+        reviews: 0,
+        category: 'erro',
+        platform: 'mercadolivre',
+        url: '#',
+        freeShipping: false,
+        discount: 0,
+        type: 'bestsellers' as any,
+    }];
   }
 }
