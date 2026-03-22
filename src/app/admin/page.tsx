@@ -908,33 +908,54 @@ export default function AdminDashboard() {
                          🔑 Autenticação Necessária
                        </h4>
                        <p style={{ fontSize: '0.8rem', color: '#854d0e', marginBottom: '15px' }}>
-                         O Mercado Livre exige que você autorize este aplicativo para permitir buscas sem bloqueios.
-                       </p>
-                       <p style={{ fontSize: '0.65rem', color: '#854d0e', background: '#fff', padding: '10px', borderRadius: '4px', border: '1px solid #fde68a', marginBottom: '15px' }}>
-                         1. No painel do ML, defina a <b>Redirect URI</b> como:<br />
-                         <code>{typeof window !== 'undefined' ? `${window.location.origin}/api/mercadolivre/callback` : '...' }</code>
-                         <br /><br />
-                         2. Marque as caixas <b>Authorization Code</b> e <b>Refresh Token</b>.
-                       </p>
-                       <button 
-                         className="btn btn-primary"
-                         style={{ backgroundColor: '#2563eb', border: 'none', width: '100%', cursor: 'pointer' }}
-                         onClick={() => {
-                           if (!affiliateConfig.mercadolivreAppId) {
-                             alert('Preencha o App ID primeiro!');
-                             return;
-                           }
-                           const redirectUri = `${window.location.origin}/api/mercadolivre/callback`;
-                           const authUrl = `https://auth.mercadolivre.com.br/authorization?response_type=code&client_id=${affiliateConfig.mercadolivreAppId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=offline_access%20read%20write`;
-                           window.open(authUrl, '_blank');
-                         }}
-                       >
-                         🔓 Autorizar Aplicativo no Mercado Livre
-                       </button>
-                    </div>
-                 </div>
-               )}
-            </div>
+                          O Mercado Livre exige que você autorize este aplicativo para permitir buscas sem bloqueios.
+                        </p>
+                        <p style={{ fontSize: '0.65rem', color: '#854d0e', background: '#fff', padding: '10px', borderRadius: '4px', border: '1px solid #fde68a', marginBottom: '15px' }}>
+                          1. No painel do ML, defina a <b>Redirect URI</b> como:<br />
+                          <code>https://pegaessapromo.app.br/api/mercadolivre/callback</code>
+                          <br /><br />
+                          2. Marque as caixas <b>Authorization Code</b> e <b>Refresh Token</b>.
+                        </p>
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
+                          <button 
+                            className="btn btn-primary"
+                            style={{ backgroundColor: '#2563eb', border: 'none', flex: 1, cursor: 'pointer' }}
+                            onClick={() => {
+                              if (!affiliateConfig.mercadolivreAppId) {
+                                alert('Preencha o App ID primeiro!');
+                                return;
+                              }
+                              const redirectUri = `https://pegaessapromo.app.br/api/mercadolivre/callback`;
+                              const authUrl = `https://auth.mercadolibre.com.br/authorization?response_type=code&client_id=${affiliateConfig.mercadolivreAppId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=offline_access%20read%20write`;
+                              window.open(authUrl, '_blank');
+                            }}
+                          >
+                            🔓 Autorizar (Via Site Real)
+                          </button>
+                          <button 
+                            className="btn btn-secondary"
+                            style={{ backgroundColor: '#64748b', color: 'white', flex: 1, cursor: 'pointer', fontSize: '0.7rem' }}
+                            onClick={() => {
+                              if (!affiliateConfig.mercadolivreAppId) {
+                                alert('Preencha o App ID primeiro!');
+                                return;
+                              }
+                              const redirectUri = `${window.location.origin}/api/mercadolivre/callback`;
+                              const authUrl = `https://auth.mercadolibre.com.br/authorization?response_type=code&client_id=${affiliateConfig.mercadolivreAppId}&redirect_uri=${encodeURIComponent(redirectUri)}` +
+                                `&scope=offline_access%20read%20write`;
+                              window.open(authUrl, '_blank');
+                            }}
+                          >
+                             Autorizar (Local)
+                          </button>
+                        </div>
+                        <p style={{ fontSize: '0.65rem', color: '#64748b', marginTop: '10px', textAlign: 'center' }}>
+                          *Ao usar o Site Real, o login será salvo no banco compartilhado e ativado aqui no seu PC na hora!
+                        </p>
+                     </div>
+                  </div>
+                )}
+             </div>
 
             <div className="admin-card" style={{ marginTop: '1rem', cursor: 'pointer', padding: '15px 25px', backgroundColor: activeAccordion === 'ia' ? '#f0fdf4' : '#fff' }} onClick={() => setActiveAccordion(activeAccordion === 'ia' ? '' : 'ia')}>
                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
