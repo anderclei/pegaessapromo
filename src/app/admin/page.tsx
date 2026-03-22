@@ -926,7 +926,7 @@ export default function AdminDashboard() {
                                 return;
                               }
                               const redirectUri = `https://pegaessapromo.app.br/api/mercadolivre/callback`;
-                              const authUrl = `https://auth.mercadolibre.com.br/authorization?response_type=code&client_id=${affiliateConfig.mercadolivreAppId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=offline_access%20read%20write`;
+                              const authUrl = `https://auth.mercadolivre.com.br/authorization?response_type=code&client_id=${affiliateConfig.mercadolivreAppId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=offline_access%20read%20write`;
                               window.open(authUrl, '_blank');
                             }}
                           >
@@ -941,7 +941,7 @@ export default function AdminDashboard() {
                                 return;
                               }
                               const redirectUri = `${window.location.origin}/api/mercadolivre/callback`;
-                              const authUrl = `https://auth.mercadolibre.com.br/authorization?response_type=code&client_id=${affiliateConfig.mercadolivreAppId}&redirect_uri=${encodeURIComponent(redirectUri)}` +
+                              const authUrl = `https://auth.mercadolivre.com.br/authorization?response_type=code&client_id=${affiliateConfig.mercadolivreAppId}&redirect_uri=${encodeURIComponent(redirectUri)}` +
                                 `&scope=offline_access%20read%20write`;
                               window.open(authUrl, '_blank');
                             }}
