@@ -32,7 +32,7 @@ export default function AdminDashboard() {
   
   // Bot Schedule Config State
   const [intervalVal, setIntervalVal] = useState(60);
-  const [maxPosts, setMaxPosts] = useState(3);
+  const [maxPosts, setMaxPosts] = useState(1);
   const [startTime, setStartTime] = useState('08:00');
   const [endTime, setEndTime] = useState('19:00');
   const [template, setTemplate] = useState<'aida' | 'pas' | 'bab'>('aida');

@@ -19,7 +19,7 @@ class PostScheduler {
       whatsapp: true,
       instagram: true,
     },
-    maxPostsPerRun: 3,
+    maxPostsPerRun: 1,
     startTime: '08:00',
     endTime: '19:00',
   };
@@ -311,8 +311,10 @@ class PostScheduler {
 
       if (productsToPost.length === 0) {
         console.log('📭 Nenhum produto novo para postar');
-        // Clear history after all products have been posted to allow re-posting
-        whatsappBot.clearPostedHistory();
+        // Ao invés de limpar todo o histórico e forçar spam repetido das mesmas ofertas,
+        // apenas aguardamos as próximas ofertas aparecerem no site da Amazon na próxima hora.
+        // Se a pessoa reiniciar o servidor, as ofertas também são "esquecidas".
+        // whatsappBot.clearPostedHistory(); 
         return logs;
       }
 
