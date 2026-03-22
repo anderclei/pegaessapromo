@@ -83,9 +83,11 @@ export async function scrapeMercadoLivre(category: string = 'todos', type: strin
       if (link.includes('#')) link = link.split('#')[0];
       if (link.includes('?')) link = link.split('?')[0];
 
-      // Imagem
-      let image = $el.find('.promotion-item__img, .poly-component__picture img, .ui-search-result-image__element').attr('data-src') || 
-                  $el.find('.promotion-item__img, .poly-component__picture img, .ui-search-result-image__element').attr('src') || '';
+      // Imagem resoluta (Mercado Livre muda as tags o tempo todo)
+      let image = $el.find('img').attr('data-src') || 
+                  $el.find('img').attr('src') || 
+                  $el.find('img.promotion-item__img').attr('src') || 
+                  '';
       
       // Frete Grátis
       const hasFreeShipping = $el.text().toLowerCase().includes('frete grátis');
