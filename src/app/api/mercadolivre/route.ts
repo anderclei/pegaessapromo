@@ -35,23 +35,27 @@ export async function GET(request: Request) {
       setTimeout(() => reject(new Error('ML API timeout após 15s')), 15000)
     );
 
-    // Tenta buscar as ofertas já salvas no Banco pelo Bot Local (Fallback)
-    const { data: dbProducts, error: dbError } = await supabase
-      .from('products')
-      .select('*')
-      .eq('platform', 'mercadolivre')
-      .order('created_at', { ascending: false })
-      .limit(50);
+    // Tenta buscar no cofre global de produtos (Cache)
+    const { data: cacheData } = await supabase
+      .from('settings')
+      .select('config')
+      .eq('id', 'hot_products_cache')
+      .single();
 
-    let products = (dbProducts || []).map(p => ({
-      ...p.data,
-      id: p.id,
-      platform: 'mercadolivre'
-    }));
+    let products: any[] = [];
+    
+    if (cacheData?.config) {
+      // Pega tudo que é do Mercado Livre no cache
+      const allCache = cacheData.config;
+      const mlFromCache = Object.values(allCache).flat().filter((p: any) => p?.platform === 'mercadolivre');
+      if (mlFromCache.length > 0) {
+        products = mlFromCache;
+      }
+    }
 
-    // Se o banco estiver vazio, tenta o scrape (pode falhar na Vercel)
+    // Se o cache estiver vazio ou não tiver ML, tenta o scrape (pode falhar na Vercel)
     if (products.length === 0) {
-      console.log('[ML API] Banco vazio, tentando scrape direto...');
+      console.log('[ML API] Cache vazio ou sem ML, tentando scrape direto...');
       products = await Promise.race([
         scrapeMercadoLivre(category, type),
         timeoutPromise,
