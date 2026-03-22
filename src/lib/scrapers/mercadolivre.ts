@@ -155,8 +155,7 @@ export async function scrapeMercadoLivre(category: string = 'todos', type: strin
       const freeShipping: boolean = item.shipping?.free_shipping === true;
       const sales: number = item.sold_quantity || Math.floor(Math.random() * 300) + 30;
 
-      if (type === 'super' && discount < 10) continue;
-
+      // products.push(...)
       products.push({
         id: generateId(mlId),
         title,
