@@ -55,7 +55,12 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json(
-      { products: [], error: 'api_error', message: error.message || 'Falha ao buscar produtos do Mercado Livre' },
+      { 
+        products: [], 
+        error: 'api_error', 
+        message: error.message || 'Falha ao buscar produtos do Mercado Livre',
+        details: error.response?.data || 'Sem detalhes adicionais'
+      },
       { status: 500 }
     );
   }
