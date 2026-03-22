@@ -1727,37 +1727,82 @@ export default function AdminDashboard() {
               </div>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button className="btn btn-secondary" onClick={fetchOffers} disabled={loadingOffers}>
-                  {loadingOffers ? '⏳ Buscando...' : '🔄 Recarregar Tela'}
-                </button>
-                <button 
-                  className="btn btn-primary" 
-                  onClick={async () => {
-                    if (!confirm('Esta ação fará o robô varrer a Amazon novamente buscando ofertas frescas para todas as categorias. Pode demorar de 1 a 3 minutos. Continuar?')) return;
-                    setLoadingOffers(true);
-                    try {
-                      alert('Varredura iniciada! Isso pode demorar até 3 minutos. Não feche a página, os produtos irão aparecer automaticamente quando a busca terminar.');
-                      await fetch('/api/amazon/sync', { method: 'POST', body: JSON.stringify({ config: { isAuto: false } }) });
-                      await fetchOffers();
-                      alert('Varredura finalizada com sucesso! Novos produtos carregados.');
-                    } catch (e) {
-                      alert('Erro ao forçar varredura. Verifique a conexão com a Amazon.');
-                      setLoadingOffers(false);
-                    }
-                  }} 
-                  disabled={loadingOffers}
-                  style={{ backgroundColor: '#d97706', color: 'white', border: 'none' }}
-                >
-                  🚀 Forçar Varredura na Amazon
-                </button>
-                <button 
-                  className="btn btn-primary" 
-                  onClick={fetchOffersML}
-                  disabled={loadingOffers}
-                  style={{ backgroundColor: '#fef08a', color: '#854d0e', border: 'none', fontWeight: 'bold' }}
-                >
-                  🤝 Ver Mercado Livre
+                  {loadingOffers ? '⏳ Buscando...' : '🔄 Recarregar Amazon'}
                 </button>
               </div>
+            </div>
+
+            {/* ── Platform Fetch Buttons ── */}
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '1rem', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'bold' }}>Buscar na loja:</span>
+              <button
+                className="btn btn-sm"
+                onClick={fetchOffers}
+                disabled={loadingOffers}
+                style={{ background: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa', fontWeight: 'bold', fontSize: '0.78rem' }}
+              >
+                {loadingOffers ? '⏳' : '🛒'} Amazon
+              </button>
+              <button
+                className="btn btn-sm"
+                onClick={fetchOffersML}
+                disabled={loadingOffers}
+                style={{ background: '#fefce8', color: '#854d0e', border: '1px solid #fde68a', fontWeight: 'bold', fontSize: '0.78rem' }}
+              >
+                {loadingOffers ? '⏳' : '🤝'} Mercado Livre
+              </button>
+              <button
+                className="btn btn-sm"
+                onClick={fetchOffersShopee}
+                disabled={loadingOffers}
+                style={{ background: '#fff1f2', color: '#9f1239', border: '1px solid #fecdd3', fontWeight: 'bold', fontSize: '0.78rem' }}
+              >
+                {loadingOffers ? '⏳' : '🛍️'} Shopee
+              </button>
+              <button
+                className="btn btn-sm"
+                onClick={async () => {
+                  if (!confirm('Forçar varredura completa na Amazon (1-3 min)?')) return;
+                  setLoadingOffers(true);
+                  await fetch('/api/amazon/sync', { method: 'POST', body: JSON.stringify({ config: { isAuto: false } }) });
+                  await fetchOffers();
+                  setLoadingOffers(false);
+                }}
+                disabled={loadingOffers}
+                style={{ background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0', fontWeight: 'bold', fontSize: '0.78rem' }}
+              >
+                🔄 Varredura Completa Amazon
+              </button>
+
+              {/* Count badge */}
+              <span style={{ marginLeft: 'auto', fontSize: '0.78rem', color: '#64748b', background: '#f1f5f9', padding: '4px 10px', borderRadius: '20px' }}>
+                {offers.filter((o: any) => offerFilter === 'all' || o.platform === offerFilter).length} ofertas
+              </span>
+            </div>
+
+            {/* ── Filter Pills ── */}
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '1.2rem', flexWrap: 'wrap' }}>
+              {[
+                { key: 'all', label: '🌐 Todas', count: offers.length },
+                { key: 'amazon', label: '🛒 Amazon', count: offers.filter((o: any) => o.platform === 'amazon').length },
+                { key: 'mercadolivre', label: '🤝 Mercado Livre', count: offers.filter((o: any) => o.platform === 'mercadolivre').length },
+                { key: 'shopee', label: '🛍️ Shopee', count: offers.filter((o: any) => o.platform === 'shopee').length },
+              ].map(({ key, label, count }) => (
+                <button
+                  key={key}
+                  onClick={() => setOfferFilter(key)}
+                  style={{
+                    padding: '6px 14px', borderRadius: '20px', cursor: 'pointer', fontSize: '0.8rem',
+                    border: offerFilter === key ? '2px solid #f59e0b' : '1px solid #e2e8f0',
+                    background: offerFilter === key ? '#fff7ed' : '#f8fafc',
+                    color: offerFilter === key ? '#c2410c' : '#64748b',
+                    fontWeight: offerFilter === key ? 'bold' : 'normal',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  {label} {count > 0 && <span style={{ fontSize: '0.72rem', background: '#e2e8f0', borderRadius: '10px', padding: '1px 6px', marginLeft: '4px' }}>{count}</span>}
+                </button>
+              ))}
             </div>
 
             {botStatus !== 'connected' && (
@@ -1773,16 +1818,24 @@ export default function AdminDashboard() {
 
             {loadingOffers ? (
               <div className="admin-loading">Buscando ofertas...</div>
-            ) : offers.length === 0 ? (
+            ) : offers.filter((o: any) => offerFilter === 'all' || o.platform === offerFilter).length === 0 ? (
               <div style={{ textAlign: 'center', padding: '4rem', color: '#94a3b8' }}>
                 <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📭</div>
-                <p>Nenhuma oferta carregada ainda.</p>
+                <p>Nenhuma oferta {offerFilter !== 'all' ? `da ${offerFilter}` : ''} carregada ainda.</p>
                 <button className="btn btn-primary" style={{ marginTop: '1rem' }} onClick={fetchOffers}>🔍 Buscar Ofertas Agora</button>
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.5rem' }}>
-                {offers.map((product: any) => (
-                  <div key={product.id} className="admin-card" style={{ padding: '0', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                {offers.filter((o: any) => offerFilter === 'all' || o.platform === offerFilter).map((product: any) => (
+                  <div key={product.id} className="admin-card" style={{ padding: '0', overflow: 'hidden', border: '1px solid #e2e8f0', position: 'relative' }}>
+
+                    {/* Platform badge */}
+                    <div style={{ position: 'absolute', bottom: '195px', left: '10px', zIndex: 10 }}>
+                      {product.platform === 'amazon' && <span style={{ fontSize: '0.65rem', background: '#ff9900', color: '#fff', padding: '2px 7px', borderRadius: '8px', fontWeight: 'bold' }}>🛒 Amazon</span>}
+                      {product.platform === 'mercadolivre' && <span style={{ fontSize: '0.65rem', background: '#ffe600', color: '#333', padding: '2px 7px', borderRadius: '8px', fontWeight: 'bold' }}>🤝 ML</span>}
+                      {product.platform === 'shopee' && <span style={{ fontSize: '0.65rem', background: '#ee4d2d', color: '#fff', padding: '2px 7px', borderRadius: '8px', fontWeight: 'bold' }}>🛍️ Shopee</span>}
+                    </div>
+
                     {/* Product Image */}
                     <div style={{ position: 'relative', height: '180px', background: '#f8fafc', overflow: 'hidden' }}>
                       <img 
