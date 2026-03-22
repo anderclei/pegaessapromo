@@ -59,6 +59,8 @@ export default function AdminDashboard() {
     igAccessToken: ''
   });
   const [saveStatus, setSaveStatus] = useState(false);
+  const [activeAccordion, setActiveAccordion] = useState<string>('amazon');
+  const [saveStatus, setSaveStatus] = useState(false);
   
   // Categories State
   const [dbCategories, setDbCategories] = useState<{id: string, label: string, amazonSlug?: string}[]>([]);
@@ -715,192 +717,240 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div className="admin-card">
-               <h3>🛒 Configurações de Afiliado (Amazon)</h3>
-               <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem' }}>
-                 Configure sua Associate Tag e chaves da API Amazon para sincronização automática.
-               </p>
-               <div className="form-field">
-                  <label style={{ color: '#333', fontWeight: 'bold' }}>Associate Tag (Partner Tag)</label>
-                  <input 
-                    type="text" placeholder="Ex: seunid-20"
-                    style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
-                    value={affiliateConfig.amazonId}
-                    onChange={e => setAffiliateConfig({...affiliateConfig, amazonId: e.target.value})}
-                  />
-               </div>
-               <div className="form-field">
-                  <label style={{ color: '#333', fontWeight: 'bold' }}>Access Key</label>
-                  <input 
-                    type="text" placeholder="AKIA..."
-                    style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
-                    value={affiliateConfig.amazonAccessKey}
-                    onChange={e => setAffiliateConfig({...affiliateConfig, amazonAccessKey: e.target.value})}
-                  />
-               </div>
-               <div className="form-field">
-                  <label style={{ color: '#333', fontWeight: 'bold' }}>Secret Key</label>
-                  <input 
-                    type="password" placeholder="Sua Secret Key"
-                    style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
-                    value={affiliateConfig.amazonSecretKey}
-                    onChange={e => setAffiliateConfig({...affiliateConfig, amazonSecretKey: e.target.value})}
-                  />
-               </div>
-            </div>
-
-            <div className="admin-card" style={{ marginTop: '2rem', borderTop: '4px solid #fef08a' }}>
-               <h3>🤝 Colaborador: Mercado Livre (API Oficial)</h3>
-               <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem' }}>
-                 Suas credenciais recém-criadas no Mercado Livre Developers. Elas desbloqueiam a busca imune a bloqueios.
-               </p>
-               <div className="form-field">
-                  <label style={{ color: '#333', fontWeight: 'bold' }}>Application ID (App ID ou Client ID)</label>
-                  <input 
-                    type="text" placeholder="Ex: 85938481923..."
-                    style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
-                    value={affiliateConfig.mercadolivreAppId || ''}
-                    onChange={e => setAffiliateConfig({...affiliateConfig, mercadolivreAppId: e.target.value})}
-                  />
-               </div>
-               <div className="form-field">
-                  <label style={{ color: '#333', fontWeight: 'bold' }}>Chave Secreta (Client Secret)</label>
-                  <input 
-                    type="password" placeholder="Cole sua Client Secret gerada no painel"
-                    style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
-                    value={affiliateConfig.mercadolivreClientSecret || ''}
-                    onChange={e => setAffiliateConfig({...affiliateConfig, mercadolivreClientSecret: e.target.value})}
-                  />
-               </div>
-               <div className="form-field">
-                  <label style={{ color: '#333', fontWeight: 'bold' }}>Sua Tag de Afiliado (Ex: seu-id-20)</label>
-                  <input 
-                    type="text" placeholder="Use se for gerar deep-link de afiliados manual"
-                    style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
-                    value={affiliateConfig.mercadolivreId || ''}
-                    onChange={e => setAffiliateConfig({...affiliateConfig, mercadolivreId: e.target.value})}
-                  />
-               </div>
-            </div>
-
-            <div className="admin-card" style={{ marginTop: '2rem' }}>
-               <h3>🤖 Inteligência Artificial (Gemini)</h3>
-               <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem' }}>
-                 A chave do Gemini é usada para gerar as copys altamente persuasivas para seus grupos automaticamente.
-               </p>
-               <div className="form-field">
-                  <label style={{ color: '#333', fontWeight: 'bold' }}>Provedor de IA (Cérebro do Robô)</label>
-                  <select
-                    style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc', padding: '10px', borderRadius: '4px', marginBottom: '8px' }}
-                    value={affiliateConfig.aiProvider || 'gemini'}
-                    onChange={e => setAffiliateConfig({...affiliateConfig, aiProvider: e.target.value as 'gemini' | 'ollama'})}
-                  >
-                    <option value="gemini">Google Gemini (Grátis / Tem limites de uso)</option>
-                    <option value="ollama">Ollama (Local / Roda na sua placa de vídeo / Sem limites)</option>
-                  </select>
+            <div className="admin-card" style={{ cursor: 'pointer', padding: '15px 25px', backgroundColor: activeAccordion === 'amazon' ? '#fffbeb' : '#fff' }} onClick={() => setActiveAccordion(activeAccordion === 'amazon' ? '' : 'amazon')}>
+               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                 <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1e293b' }}>🛒 Amazon (Afiliados)</h3>
+                 <span>{activeAccordion === 'amazon' ? '▲' : '▼'}</span>
                </div>
                
-               {(!affiliateConfig.aiProvider || affiliateConfig.aiProvider === 'gemini') ? (
-                 <div className="form-field">
-                    <label style={{ color: '#333', fontWeight: 'bold' }}>Google Gemini API Key</label>
-                    <input 
-                      type="password" placeholder="Cole sua chave do AI Studio aqui"
-                      style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
-                      value={affiliateConfig.geminiKey}
-                      onChange={e => setAffiliateConfig({...affiliateConfig, geminiKey: e.target.value})}
-                    />
-                 </div>
-               ) : (
-                 <div className="form-field" style={{ background: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
-                    <label style={{ color: '#333', fontWeight: 'bold' }}>Nome do Modelo no Ollama</label>
-                    <p style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '8px' }}>
-                      Digite exatamente como você baixou no Ollama (ex: <code>llama3.2</code>, <code>phi3</code>, <code>mistral</code>)
-                    </p>
-                    <input 
-                      type="text" placeholder="ex: llama3.2"
-                      style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
-                      value={affiliateConfig.ollamaModel || ''}
-                      onChange={e => setAffiliateConfig({...affiliateConfig, ollamaModel: e.target.value})}
-                    />
+               {activeAccordion === 'amazon' && (
+                 <div style={{ marginTop: '20px', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
+                   <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem' }}>
+                     Configure sua Associate Tag e chaves da API Amazon para sincronização automática.
+                   </p>
+                   <div className="form-field">
+                      <label style={{ color: '#333', fontWeight: 'bold' }}>Associate Tag (Partner Tag)</label>
+                      <input 
+                        type="text" placeholder="Ex: seunid-20"
+                        style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
+                        value={affiliateConfig.amazonId}
+                        onChange={e => setAffiliateConfig({...affiliateConfig, amazonId: e.target.value})}
+                      />
+                   </div>
+                   <div className="form-field">
+                      <label style={{ color: '#333', fontWeight: 'bold' }}>Access Key</label>
+                      <input 
+                        type="text" placeholder="AKIA..."
+                        style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
+                        value={affiliateConfig.amazonAccessKey}
+                        onChange={e => setAffiliateConfig({...affiliateConfig, amazonAccessKey: e.target.value})}
+                      />
+                   </div>
+                   <div className="form-field">
+                      <label style={{ color: '#333', fontWeight: 'bold' }}>Secret Key</label>
+                      <input 
+                        type="password" placeholder="Sua Secret Key"
+                        style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
+                        value={affiliateConfig.amazonSecretKey}
+                        onChange={e => setAffiliateConfig({...affiliateConfig, amazonSecretKey: e.target.value})}
+                      />
+                   </div>
                  </div>
                )}
+            </div>
+
+            <div className="admin-card" style={{ marginTop: '1rem', cursor: 'pointer', padding: '15px 25px', backgroundColor: activeAccordion === 'mercadolivre' ? '#fef08a' : '#fff' }} onClick={() => setActiveAccordion(activeAccordion === 'mercadolivre' ? '' : 'mercadolivre')}>
+               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                 <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1e293b' }}>🤝 Mercado Livre (API Oficial)</h3>
+                 <span>{activeAccordion === 'mercadolivre' ? '▲' : '▼'}</span>
+               </div>
+
+               {activeAccordion === 'mercadolivre' && (
+                 <div style={{ marginTop: '20px', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
+                   <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem' }}>
+                     Suas credenciais recém-criadas no Mercado Livre Developers. Elas desbloqueiam a busca imune a bloqueios.
+                   </p>
+                   <div className="form-field">
+                      <label style={{ color: '#333', fontWeight: 'bold' }}>Application ID (App ID ou Client ID)</label>
+                      <input 
+                        type="text" placeholder="Ex: 85938481923..."
+                        style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
+                        value={affiliateConfig.mercadolivreAppId || ''}
+                        onChange={e => setAffiliateConfig({...affiliateConfig, mercadolivreAppId: e.target.value})}
+                      />
+                   </div>
+                   <div className="form-field">
+                      <label style={{ color: '#333', fontWeight: 'bold' }}>Chave Secreta (Client Secret)</label>
+                      <input 
+                        type="password" placeholder="Cole sua Client Secret gerada no painel"
+                        style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
+                        value={affiliateConfig.mercadolivreClientSecret || ''}
+                        onChange={e => setAffiliateConfig({...affiliateConfig, mercadolivreClientSecret: e.target.value})}
+                      />
+                   </div>
+                   <div className="form-field">
+                      <label style={{ color: '#333', fontWeight: 'bold' }}>Sua Tag de Afiliado (Ex: seu-id-20)</label>
+                      <input 
+                        type="text" placeholder="Use se for gerar deep-link de afiliados manual"
+                        style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
+                        value={affiliateConfig.mercadolivreId || ''}
+                        onChange={e => setAffiliateConfig({...affiliateConfig, mercadolivreId: e.target.value})}
+                      />
+                   </div>
+                 </div>
+               )}
+            </div>
+
+            <div className="admin-card" style={{ marginTop: '1rem', cursor: 'pointer', padding: '15px 25px', backgroundColor: activeAccordion === 'ia' ? '#f0fdf4' : '#fff' }} onClick={() => setActiveAccordion(activeAccordion === 'ia' ? '' : 'ia')}>
+               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                 <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1e293b' }}>🤖 Inteligência Artificial (Copys)</h3>
+                 <span>{activeAccordion === 'ia' ? '▲' : '▼'}</span>
+               </div>
                
-               <div className="form-field">
-                  <label style={{ color: '#333', fontWeight: 'bold' }}>Estilo das Copys (IA)</label>
-                  <textarea 
-                    placeholder="Ex: Copys engraçadas, usando gírias, focando em economia..."
-                    style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc', minHeight: '80px', paddingTop: '10px' }}
-                    value={affiliateConfig.copyStyle}
-                    onChange={e => setAffiliateConfig({...affiliateConfig, copyStyle: e.target.value})}
-                  />
-                  <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '5px' }}>
-                    Descreva como você quer que o Gemini escreva suas ofertas (humor, urgência, tom de voz, etc).
-                  </p>
-               </div>
+               {activeAccordion === 'ia' && (
+                 <div style={{ marginTop: '20px', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
+                   <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem' }}>
+                     A chave do Gemini é usada para gerar as copys altamente persuasivas para seus grupos automaticamente.
+                   </p>
+                   <div className="form-field">
+                      <label style={{ color: '#333', fontWeight: 'bold' }}>Provedor de IA (Cérebro do Robô)</label>
+                      <select
+                        style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc', padding: '10px', borderRadius: '4px', marginBottom: '8px', width: '100%' }}
+                        value={affiliateConfig.aiProvider || 'gemini'}
+                        onChange={e => setAffiliateConfig({...affiliateConfig, aiProvider: e.target.value as 'gemini' | 'ollama'})}
+                      >
+                        <option value="gemini">Google Gemini (Grátis / Tem limites de uso)</option>
+                        <option value="ollama">Ollama (Local / Roda na sua placa de vídeo / Sem limites)</option>
+                      </select>
+                   </div>
+                   
+                   {(!affiliateConfig.aiProvider || affiliateConfig.aiProvider === 'gemini') ? (
+                     <div className="form-field">
+                        <label style={{ color: '#333', fontWeight: 'bold' }}>Google Gemini API Key</label>
+                        <input 
+                          type="password" placeholder="Cole sua chave do AI Studio aqui"
+                          style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
+                          value={affiliateConfig.geminiKey}
+                          onChange={e => setAffiliateConfig({...affiliateConfig, geminiKey: e.target.value})}
+                        />
+                     </div>
+                   ) : (
+                     <div className="form-field" style={{ background: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
+                        <label style={{ color: '#333', fontWeight: 'bold' }}>Nome do Modelo no Ollama</label>
+                        <p style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '8px' }}>
+                          Digite exatamente como você baixou no Ollama (ex: <code>llama3.2</code>, <code>phi3</code>, <code>mistral</code>)
+                        </p>
+                        <input 
+                          type="text" placeholder="ex: llama3.2"
+                          style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
+                          value={affiliateConfig.ollamaModel || ''}
+                          onChange={e => setAffiliateConfig({...affiliateConfig, ollamaModel: e.target.value})}
+                        />
+                     </div>
+                   )}
+                   
+                   <div className="form-field">
+                      <label style={{ color: '#333', fontWeight: 'bold' }}>Estilo das Copys (IA)</label>
+                      <textarea 
+                        placeholder="Ex: Copys engraçadas, usando gírias, focando em economia..."
+                        style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc', minHeight: '80px', paddingTop: '10px' }}
+                        value={affiliateConfig.copyStyle}
+                        onChange={e => setAffiliateConfig({...affiliateConfig, copyStyle: e.target.value})}
+                      />
+                      <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '5px' }}>
+                        Descreva como você quer que o Gemini escreva suas ofertas (humor, urgência, tom de voz, etc).
+                      </p>
+                   </div>
+                 </div>
+               )}
             </div>
 
-            <div className="admin-card" style={{ marginTop: '2rem' }}>
-               <h3>📸 Integração Oficial: Instagram (API Graph)</h3>
-               <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem' }}>
-                 Para postar direto no Instagram sem ferramentas piratas, use tokens da API Oficial "Facebook for Developers".
-               </p>
-               <div className="form-field">
-                  <label style={{ color: '#333', fontWeight: 'bold' }}>Instagram Account ID (ig_user_id)</label>
-                  <input 
-                    type="text" placeholder="ID da sua conta Instagram vinculada"
-                    style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
-                    value={affiliateConfig.igAccountId || ''}
-                    onChange={e => setAffiliateConfig({...affiliateConfig, igAccountId: e.target.value})}
-                  />
+            <div className="admin-card" style={{ marginTop: '1rem', cursor: 'pointer', padding: '15px 25px', backgroundColor: activeAccordion === 'instagram' ? '#fdf4ff' : '#fff' }} onClick={() => setActiveAccordion(activeAccordion === 'instagram' ? '' : 'instagram')}>
+               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                 <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1e293b' }}>📸 Integração Instagram (API Graph)</h3>
+                 <span>{activeAccordion === 'instagram' ? '▲' : '▼'}</span>
                </div>
-               <div className="form-field">
-                  <label style={{ color: '#333', fontWeight: 'bold' }}>Access Token (Longo Prazo)</label>
-                  <input 
-                    type="password" placeholder="Token gerado no painel de Sistema da Meta"
-                    style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
-                    value={affiliateConfig.igAccessToken || ''}
-                    onChange={e => setAffiliateConfig({...affiliateConfig, igAccessToken: e.target.value})}
-                  />
-               </div>
+               
+               {activeAccordion === 'instagram' && (
+                 <div style={{ marginTop: '20px', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
+                   <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem' }}>
+                     Para postar direto no Instagram sem ferramentas piratas, use tokens da API Oficial "Facebook for Developers".
+                   </p>
+                   <div className="form-field">
+                      <label style={{ color: '#333', fontWeight: 'bold' }}>Instagram Account ID (ig_user_id)</label>
+                      <input 
+                        type="text" placeholder="ID da sua conta Instagram vinculada"
+                        style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
+                        value={affiliateConfig.igAccountId || ''}
+                        onChange={e => setAffiliateConfig({...affiliateConfig, igAccountId: e.target.value})}
+                      />
+                   </div>
+                   <div className="form-field">
+                      <label style={{ color: '#333', fontWeight: 'bold' }}>Access Token (Longo Prazo)</label>
+                      <input 
+                        type="password" placeholder="Token gerado no painel de Sistema da Meta"
+                        style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
+                        value={affiliateConfig.igAccessToken || ''}
+                        onChange={e => setAffiliateConfig({...affiliateConfig, igAccessToken: e.target.value})}
+                      />
+                   </div>
+                 </div>
+               )}
             </div>
 
-            <div className="admin-card" style={{ marginTop: '2rem' }}>
-               <h3>🛡️ Lista Negra (Palavras Proibidas)</h3>
-               <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem' }}>
-                 Qualquer produto que tenha essas palavras no nome será <b>instantaneamente descartado</b> pelo robô e não chegará ao seu painel.
-               </p>
-               <div className="form-field">
-                  <label style={{ color: '#333', fontWeight: 'bold' }}>Palavras separadas por VÍRGULA</label>
-                  <textarea 
-                    placeholder="Ex: cabo, filme, capa, película, adaptador..."
-                    style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc', minHeight: '60px', paddingTop: '10px' }}
-                    value={affiliateConfig.forbiddenWords || 'cabo, adaptador, fone com fio, fone intra-auricular com fio, capinha, película, carregador de parede'}
-                    onChange={e => setAffiliateConfig({...affiliateConfig, forbiddenWords: e.target.value})}
-                  />
+            <div className="admin-card" style={{ marginTop: '1rem', cursor: 'pointer', padding: '15px 25px', backgroundColor: activeAccordion === 'blacklist' ? '#fef2f2' : '#fff' }} onClick={() => setActiveAccordion(activeAccordion === 'blacklist' ? '' : 'blacklist')}>
+               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                 <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1e293b' }}>🛡️ Lista Negra (Palavras Proibidas)</h3>
+                 <span>{activeAccordion === 'blacklist' ? '▲' : '▼'}</span>
                </div>
+               
+               {activeAccordion === 'blacklist' && (
+                 <div style={{ marginTop: '20px', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
+                   <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem' }}>
+                     Qualquer produto que tenha essas palavras no nome será <b>instantaneamente descartado</b> pelo robô e não chegará ao seu painel.
+                   </p>
+                   <div className="form-field">
+                      <label style={{ color: '#333', fontWeight: 'bold' }}>Palavras separadas por VÍRGULA</label>
+                      <textarea 
+                        placeholder="Ex: cabo, filme, capa, película, adaptador..."
+                        style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc', minHeight: '60px', paddingTop: '10px' }}
+                        value={affiliateConfig.forbiddenWords || 'cabo, adaptador, fone com fio, fone intra-auricular com fio, capinha, película, carregador de parede'}
+                        onChange={e => setAffiliateConfig({...affiliateConfig, forbiddenWords: e.target.value})}
+                      />
+                   </div>
+                 </div>
+               )}
             </div>
 
-            <div className="admin-card" style={{ marginTop: '2rem' }}>
-               <h3>🌐 Configurações do Portal</h3>
-               <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem' }}>
-                 URL base usada para gerar os links encurtados que levam os clientes para o seu site.
-               </p>
-               <div className="form-field">
-                  <label style={{ color: '#333', fontWeight: 'bold' }}>URL Base do seu Portal</label>
-                  <input 
-                    type="text" placeholder="Ex: https://pegaessapromo.com.br"
-                    style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
-                    value={affiliateConfig.siteUrl}
-                    onChange={e => setAffiliateConfig({...affiliateConfig, siteUrl: e.target.value})}
-                  />
-                  {mounted && affiliateConfig.siteUrl?.includes('pegaessapromo.com.br') && window.location.hostname === 'localhost' && (
-                    <div style={{ marginTop: '8px', padding: '10px', backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', color: '#92400e', fontSize: '0.8rem' }}>
-                      ⚠️ <b>CUIDADO:</b> Você está usando a URL de produção (pegaessapromo.com.br) enquanto o sistema roda localmente.
-                      Isso fará com que os links nas mensagens deem <b>Erro 404</b> ao serem clicados, pois o site de produção não conhece os dados do seu banco local.
-                      Para testes, use: <code>{window.location.origin}</code> e clique em <b>Salvar Tudo</b>.
-                    </div>
-                  )}
+            <div className="admin-card" style={{ marginTop: '1rem', cursor: 'pointer', padding: '15px 25px', backgroundColor: activeAccordion === 'portal' ? '#f3f4f6' : '#fff' }} onClick={() => setActiveAccordion(activeAccordion === 'portal' ? '' : 'portal')}>
+               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                 <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1e293b' }}>🌐 Configurações do Portal</h3>
+                 <span>{activeAccordion === 'portal' ? '▲' : '▼'}</span>
                </div>
+               
+               {activeAccordion === 'portal' && (
+                 <div style={{ marginTop: '20px', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
+                   <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem' }}>
+                     URL base usada para gerar os links encurtados que levam os clientes para o seu site.
+                   </p>
+                   <div className="form-field">
+                      <label style={{ color: '#333', fontWeight: 'bold' }}>URL Base do seu Portal</label>
+                      <input 
+                        type="text" placeholder="Ex: https://pegaessapromo.com.br"
+                        style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
+                        value={affiliateConfig.siteUrl}
+                        onChange={e => setAffiliateConfig({...affiliateConfig, siteUrl: e.target.value})}
+                      />
+                      {mounted && affiliateConfig.siteUrl?.includes('pegaessapromo.com.br') && window.location.hostname === 'localhost' && (
+                        <div style={{ marginTop: '8px', padding: '10px', backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', color: '#92400e', fontSize: '0.8rem' }}>
+                          ⚠️ <b>CUIDADO:</b> Você está usando a URL de produção (pegaessapromo.com.br) enquanto o sistema roda localmente.
+                          Isso fará com que os links nas mensagens deem <b>Erro 404</b> ao serem clicados, pois o site de produção não conhece os dados do seu banco local.
+                          Para testes, use: <code>{window.location.origin}</code> e clique em <b>Salvar Tudo</b>.
+                        </div>
+                      )}
+                   </div>
+                 </div>
+               )}
             </div>
 
             <div style={{ marginTop: '2rem', position: 'sticky', bottom: '2rem' }}>
