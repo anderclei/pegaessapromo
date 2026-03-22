@@ -912,7 +912,9 @@ export default function AdminDashboard() {
                        </p>
                        <p style={{ fontSize: '0.65rem', color: '#854d0e', background: '#fff', padding: '10px', borderRadius: '4px', border: '1px solid #fde68a', marginBottom: '15px' }}>
                          1. No painel do ML, defina a <b>Redirect URI</b> como:<br />
-                         <code>{typeof window !== 'undefined' ? `${window.location.origin}/api/auth/ml/callback` : '...' }</code>
+                         <code>{typeof window !== 'undefined' ? `${window.location.origin}/api/mercadolivre/callback` : '...' }</code>
+                         <br /><br />
+                         2. Marque as caixas <b>Authorization Code</b> e <b>Refresh Token</b>.
                        </p>
                        <button 
                          className="btn btn-primary"
@@ -922,7 +924,7 @@ export default function AdminDashboard() {
                              alert('Preencha o App ID primeiro!');
                              return;
                            }
-                           const redirectUri = `${window.location.origin}/api/auth/ml/callback`;
+                           const redirectUri = `${window.location.origin}/api/mercadolivre/callback`;
                            const authUrl = `https://auth.mercadolivre.com.br/authorization?response_type=code&client_id=${affiliateConfig.mercadolivreAppId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=offline_access%20read%20write`;
                            window.open(authUrl, '_blank');
                          }}

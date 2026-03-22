@@ -1,0 +1,1 @@
+import { config } from 'dotenv'; config({ path: '.env.local' }); import { getSettings } from './src/lib/settings.ts'; async function run() { const s = await getSettings(); console.log(s.mercadolivreAppId, s.mercadolivreClientSecret); } run();
