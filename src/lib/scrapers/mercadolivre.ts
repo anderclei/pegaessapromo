@@ -180,14 +180,14 @@ export async function scrapeMercadoLivre(category: string = 'todos', type: strin
   } catch (error: any) {
     const status = error.response?.status;
     const msg = error.response?.data?.message || error.message;
+    const fullError = error.response?.data ? JSON.stringify(error.response.data) : 'Nenhum detalhe da API';
+    
+    console.error(`❌ [ML API ERROR]: Status ${status}, Msg: ${msg}, Full: ${fullError}`);
     
     if (status === 403) {
-      console.error(`❌ [ML API] BLOQUEADO (403): O Mercado Livre exige um token de USUÁRIO REAL. Clique em '🔓 Autorizar Aplicativo' no painel admin.`);
-      throw new Error('ML_AUTH_REQUIRED');
-    } else {
-      console.error(`❌ [ML API] Erro ${status}: ${msg}`);
-    }
-
+      throw new Error(`ML_AUTH_REQUIRED: ${msg} | API: ${fullError}`);
+    } 
+    
     return [];
   }
 }
