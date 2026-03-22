@@ -293,8 +293,12 @@ export default function AdminDashboard() {
           return { ...p, platform: 'mercadolivre', _copy: copy, _fetchedAt: new Date().toISOString() };
         });
       mergeOffers(products, 'mercadolivre');
-      if (products.length === 0) alert('Nenhuma oferta encontrada no Mercado Livre. A API pode estar bloqueada no servidor.');
-    } catch (e) { console.error(e); }
+      if (products.length === 0) {
+        const msg = data.message || 'Nenhuma oferta encontrada';
+        const details = data.details ? JSON.stringify(data.details) : '';
+        alert(`❌ Erro Mercado Livre: ${msg}\n${details}`);
+      }
+    } catch (e: any) { alert('Falha ao conectar com a API: ' + e.message); }
     setLoadingOffers(false);
   };
 
