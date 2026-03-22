@@ -659,13 +659,7 @@ export default function AdminDashboard() {
   return (
     <div className="admin-container">
       <div className="catalogue-container">
-        <div className="admin-tabs">
-          <button 
-            onClick={() => setActiveTab('settings')}
-            className={`admin-tab ${activeTab === 'settings' ? 'active' : ''}`}
-          >
-            ⚙️ Configurações
-          </button>
+        <div className="admin-tabs" style={{ display: 'flex', alignItems: 'center', width: '100%', overflowX: 'auto' }}>
           <button 
             onClick={() => setActiveTab('bots')}
             className={`admin-tab ${activeTab === 'bots' ? 'active' : ''}`}
@@ -690,6 +684,23 @@ export default function AdminDashboard() {
           >
             📦 Ofertas
           </button>
+          <button 
+            onClick={() => setActiveTab('settings')}
+            className={`admin-tab ${activeTab === 'settings' ? 'active' : ''}`}
+            style={{ marginLeft: '10px' }}
+          >
+            ⚙️ Configurações
+          </button>
+
+          <div style={{ 
+            display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto', padding: '0 15px', 
+            background: '#f8fafc', borderRadius: '20px', border: '1px solid #e2e8f0', height: '36px' 
+          }}>
+             <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: botStatus === 'connected' ? '#22c55e' : (botStatus === 'waiting_qr' ? '#eab308' : '#ef4444') }}></div>
+             <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', whiteSpace: 'nowrap' }}>
+               {botStatus === 'connected' ? 'Zap Conectado' : (botStatus === 'waiting_qr' ? 'Aguardando QR' : 'Zap Desconectado')}
+             </span>
+          </div>
         </div>
 
 
