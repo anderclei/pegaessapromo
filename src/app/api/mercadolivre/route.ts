@@ -37,22 +37,19 @@ export async function GET(request: Request) {
     return NextResponse.json({ products, source: 'mercadolivre', type });
 
   } catch (error: any) {
-    const isTimeout = error.message?.includes('timeout');
-    const isMissingCreds = error.message?.includes('credenciais');
+    const isAuthRequired = error.message?.includes('AUTH_REQUIRED');
     
     console.error('[ML Route] Erro:', error.message);
 
-    if (isTimeout) {
+    if (isAuthRequired) {
       return NextResponse.json(
-        { products: [], error: 'timeout', message: 'ML API demorou mais de 15s. Verifique as credenciais de acesso no painel.' },
-        { status: 504 }
+        { products: [], error: 'auth_required', message: '⚠️ Mercado Livre Bloqueado (403). Você precisa autorizar o aplicativo no painel admin primeiro.' },
+        { status: 403 }
       );
     }
 
     return NextResponse.json(
-      { products: [], error: 'api_error', message: isMissingCreds
-          ? 'Configure o App ID e Client Secret do Mercado Livre em Configurações.'
-          : error.message || 'Falha ao buscar produtos do Mercado Livre' },
+      { products: [], error: 'api_error', message: error.message || 'Falha ao buscar produtos do Mercado Livre' },
       { status: 500 }
     );
   }

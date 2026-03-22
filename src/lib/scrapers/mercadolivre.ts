@@ -1,28 +1,58 @@
 import axios from 'axios';
 import { Product } from '../types';
-import { getSettings } from '../settings';
+import { getSettings, saveSettings, AffiliateConfig } from '../settings';
 
 function generateId(mlId: string): string {
   return `ml-${mlId}`;
 }
 
-// Cache do token para não buscar a cada request
-let _cachedToken: string | null = null;
-let _tokenExpiresAt: number = 0;
-
 /**
- * Obtém um Access Token OAuth2 do Mercado Livre usando client_credentials.
- * O token expira em 6h. O cache evita chamadas desnecessárias.
+ * Atualiza o access token do Mercado Livre usando o refresh token.
  */
-async function getMercadoLivreToken(appId: string, clientSecret: string): Promise<string | null> {
-  const now = Date.now();
-
-  if (_cachedToken && now < _tokenExpiresAt) {
-    return _cachedToken;
+async function refreshMercadoLivreToken(config: AffiliateConfig): Promise<string | null> {
+  if (!config.mercadolivreRefreshToken || !config.mercadolivreAppId || !config.mercadolivreClientSecret) {
+    return null;
   }
 
   try {
-    console.log('[ML OAuth] Obtendo access token via client_credentials...');
+    console.log('[ML Scraper] Refreshing access token...');
+    const params = new URLSearchParams({
+      grant_type: 'refresh_token',
+      client_id: config.mercadolivreAppId,
+      client_secret: config.mercadolivreClientSecret,
+      refresh_token: config.mercadolivreRefreshToken,
+    });
+
+    const res = await axios.post('https://api.mercadolibre.com/oauth/token', params.toString(), {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      timeout: 10000,
+    });
+
+    const { access_token, refresh_token, expires_in } = res.data;
+
+    // Atualizar no banco de dados
+    const newConfig = {
+      ...config,
+      mercadolivreAccessToken: access_token,
+      mercadolivreRefreshToken: refresh_token || config.mercadolivreRefreshToken, // nem sempre volta um novo refresh token
+      mercadolivreTokenExpiresAt: Date.now() + (expires_in * 1000),
+    };
+
+    await saveSettings(newConfig);
+    console.log('[ML Scraper] ✅ Token renovado com sucesso.');
+    return access_token;
+  } catch (err: any) {
+    console.error('[ML Scraper] ❌ Erro ao renovar token:', err.response?.data || err.message);
+    return null;
+  }
+}
+
+/**
+ * Obtém um Access Token OAuth2 do Mercado Livre usando client_credentials (fallback).
+ */
+async function getClientCredentialsToken(appId: string, clientSecret: string): Promise<string | null> {
+  try {
+    console.log('[ML Scraper] Tentando client_credentials token (fallback)...');
     const res = await axios.post(
       'https://api.mercadolibre.com/oauth/token',
       new URLSearchParams({
@@ -31,68 +61,62 @@ async function getMercadoLivreToken(appId: string, clientSecret: string): Promis
         client_secret: clientSecret,
       }),
       {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Accept': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         timeout: 10000,
       }
     );
-
-    const token = res.data?.access_token;
-    const expiresIn = res.data?.expires_in || 21600; // 6h padrão
-
-    if (token) {
-      _cachedToken = token;
-      _tokenExpiresAt = now + (expiresIn - 300) * 1000; // renova 5min antes
-      console.log('[ML OAuth] ✅ Token obtido com sucesso!');
-      return token;
-    }
-
-    console.error('[ML OAuth] Token não retornado:', res.data);
-    return null;
+    return res.data?.access_token;
   } catch (err: any) {
-    const status = err.response?.status;
-    const msg = err.response?.data?.message || err.message;
-    console.error(`[ML OAuth] ❌ Falha ao obter token (${status}): ${msg}`);
+    console.error('[ML Scraper] ❌ Falha no client_credentials token:', err.message);
     return null;
   }
 }
 
 /**
  * Busca ofertas do Mercado Livre via API oficial autenticada (OAuth2).
- * Requer App ID e Client Secret configurados nas configurações do sistema.
  */
 export async function scrapeMercadoLivre(category: string = 'todos', type: string = 'bestsellers'): Promise<Product[]> {
-  // Carregar credenciais do ML das configurações
-  let appId: string | undefined;
-  let clientSecret: string | undefined;
-
+  let settings: AffiliateConfig | null = null;
   try {
-    const settings = await getSettings();
-    appId = settings?.mercadolivreAppId;
-    clientSecret = settings?.mercadolivreClientSecret;
+    settings = await getSettings();
   } catch (_) {}
 
-  if (!appId || !clientSecret) {
-    console.warn('[ML API] ⚠️ App ID e Client Secret do ML não configurados. Acesse Configurações → Mercado Livre para adicionar as credenciais.');
+  if (!settings || !settings.mercadolivreAppId || !settings.mercadolivreClientSecret) {
+    console.warn('[ML API] ⚠️ App ID e Client Secret do ML não configurados.');
+    return [];
+  }
+
+  let token: string | null = null;
+
+  // 1. Tentar usar o token de usuário (OAuth full)
+  if (settings.mercadolivreAccessToken) {
+    const isExpired = settings.mercadolivreTokenExpiresAt 
+      ? Date.now() > settings.mercadolivreTokenExpiresAt - 60000 
+      : true;
+
+    if (isExpired && settings.mercadolivreRefreshToken) {
+      token = await refreshMercadoLivreToken(settings);
+    } else {
+      token = settings.mercadolivreAccessToken;
+    }
+  }
+
+  // 2. Se não tem token de usuário, tenta client_credentials (pode dar 403 em busca pública)
+  if (!token) {
+    token = await getClientCredentialsToken(settings.mercadolivreAppId, settings.mercadolivreClientSecret);
+  }
+
+  if (!token) {
+    console.error('[ML API] ❌ Falha ao obter qualquer token de acesso.');
     return [];
   }
 
   try {
-    // 1. Obter token OAuth
-    const token = await getMercadoLivreToken(appId, clientSecret);
-    if (!token) {
-      console.error('[ML API] ❌ Não foi possível obter token. Verifique as credenciais.');
-      return [];
-    }
-
-    // 2. Buscar produtos com o token
+    // Buscar produtos
     const searchQueries = [
       { q: 'oferta relâmpago', sort: 'relevance' },
       { q: 'mais vendido promoção', sort: 'sold_quantity_desc' },
       { q: 'desconto especial', sort: 'relevance' },
-      { q: 'frete grátis promoção', sort: 'relevance' },
     ];
     const chosen = searchQueries[Math.floor(Math.random() * searchQueries.length)];
     const apiUrl = `https://api.mercadolibre.com/sites/MLB/search?q=${encodeURIComponent(chosen.q)}&sort=${chosen.sort}&limit=50&condition=new`;
@@ -108,11 +132,6 @@ export async function scrapeMercadoLivre(category: string = 'todos', type: strin
     });
 
     const results = data?.results || [];
-    if (!results.length) {
-      console.warn('[ML API] Nenhum resultado retornado.');
-      return [];
-    }
-
     const products: Product[] = [];
 
     for (const item of results) {
@@ -126,16 +145,13 @@ export async function scrapeMercadoLivre(category: string = 'todos', type: strin
 
       if (!title || price <= 0 || !link) continue;
 
-      // Calcular desconto real
       let discount = 0;
       if (originalPrice && originalPrice > price) {
         discount = Math.round(((originalPrice - price) / originalPrice) * 100);
       }
 
-      // Imagem de alta resolução
       const rawThumb: string = item.thumbnail || '';
       const image = rawThumb.replace('-I.jpg', '-O.jpg').replace('http://', 'https://');
-
       const freeShipping: boolean = item.shipping?.free_shipping === true;
       const sales: number = item.sold_quantity || Math.floor(Math.random() * 300) + 30;
 
@@ -160,18 +176,17 @@ export async function scrapeMercadoLivre(category: string = 'todos', type: strin
     }
 
     products.sort((a, b) => (b.discount || 0) - (a.discount || 0));
-    console.log(`[ML API] ✅ ${products.length} produtos carregados com sucesso.`);
     return products;
 
   } catch (error: any) {
     const status = error.response?.status;
     const msg = error.response?.data?.message || error.message;
-    console.error(`❌ [ML API] Erro ${status}: ${msg}`);
-
-    if (status === 403 || status === 401) {
-      // Limpar cache do token para tentar renovar na próxima chamada
-      _cachedToken = null;
-      _tokenExpiresAt = 0;
+    
+    if (status === 403) {
+      console.error(`❌ [ML API] BLOQUEADO (403): O Mercado Livre exige um token de USUÁRIO REAL. Clique em '🔓 Autorizar Aplicativo' no painel admin.`);
+      throw new Error('ML_AUTH_REQUIRED');
+    } else {
+      console.error(`❌ [ML API] Erro ${status}: ${msg}`);
     }
 
     return [];

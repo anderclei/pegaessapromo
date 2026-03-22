@@ -23,6 +23,9 @@ export interface AffiliateConfig {
   forbiddenWords?: string;
   igAccountId?: string;
   igAccessToken?: string;
+  mercadolivreAccessToken?: string;
+  mercadolivreRefreshToken?: string;
+  mercadolivreTokenExpiresAt?: number;
   enabledSources?: {
     amazon?: boolean;
     mercadolivre?: boolean;

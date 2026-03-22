@@ -903,6 +903,33 @@ export default function AdminDashboard() {
                         onChange={e => setAffiliateConfig({...affiliateConfig, mercadolivreId: e.target.value})}
                       />
                    </div>
+                   <div style={{ background: '#fefce8', padding: '15px', borderRadius: '10px', border: '1px solid #fef08a', marginTop: '1rem' }}>
+                       <h4 style={{ margin: '0 0 10px 0', color: '#854d0e', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                         🔑 Autenticação Necessária
+                       </h4>
+                       <p style={{ fontSize: '0.8rem', color: '#854d0e', marginBottom: '15px' }}>
+                         O Mercado Livre exige que você autorize este aplicativo para permitir buscas sem bloqueios.
+                       </p>
+                       <p style={{ fontSize: '0.65rem', color: '#854d0e', background: '#fff', padding: '10px', borderRadius: '4px', border: '1px solid #fde68a', marginBottom: '15px' }}>
+                         1. No painel do ML, defina a <b>Redirect URI</b> como:<br />
+                         <code>{typeof window !== 'undefined' ? `${window.location.origin}/api/auth/ml/callback` : '...' }</code>
+                       </p>
+                       <button 
+                         className="btn btn-primary"
+                         style={{ backgroundColor: '#2563eb', border: 'none', width: '100%', cursor: 'pointer' }}
+                         onClick={() => {
+                           if (!affiliateConfig.mercadolivreAppId) {
+                             alert('Preencha o App ID primeiro!');
+                             return;
+                           }
+                           const redirectUri = `${window.location.origin}/api/auth/ml/callback`;
+                           const authUrl = `https://auth.mercadolivre.com.br/authorization?response_type=code&client_id=${affiliateConfig.mercadolivreAppId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=offline_access%20read%20write`;
+                           window.open(authUrl, '_blank');
+                         }}
+                       >
+                         🔓 Autorizar Aplicativo no Mercado Livre
+                       </button>
+                    </div>
                  </div>
                )}
             </div>
