@@ -1,4 +1,6 @@
 export const dynamic = 'force-dynamic';
+export const maxDuration = 20; // 20s max — evita timeout silencioso do Next.js
+
 import { NextResponse } from 'next/server';
 import { scrapeMercadoLivre } from '@/lib/scrapers/mercadolivre';
 import fs from 'fs';
@@ -9,25 +11,48 @@ const HOT_PRODUCTS_FILE = path.join(process.cwd(), 'data', 'hot_products_mercado
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const category = searchParams.get('category') || 'todos';
+  const type = searchParams.get('type') || 'bestsellers';
 
   try {
-    const type = searchParams.get('type') || 'bestsellers';
-
+    // Servir cache local se existir (evita chamadas desnecessárias à API do ML)
     if (fs.existsSync(HOT_PRODUCTS_FILE)) {
       const content = fs.readFileSync(HOT_PRODUCTS_FILE, 'utf-8');
       const hotData = JSON.parse(content);
-      let products = hotData[category] || [];
+      const products = hotData[category] || [];
       if (type === 'bestsellers' && products.length > 0) {
         return NextResponse.json({ products, source: 'hot_sync' });
       }
     }
 
-    const products = await scrapeMercadoLivre(category, type);
+    // Timeout manual de 15 segundos para não deixar a rota pendurada
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('ML API timeout após 15s')), 15000)
+    );
+
+    const products = await Promise.race([
+      scrapeMercadoLivre(category, type),
+      timeoutPromise,
+    ]);
+
     return NextResponse.json({ products, source: 'mercadolivre', type });
-  } catch (error) {
-    console.error('ML API Error:', error);
+
+  } catch (error: any) {
+    const isTimeout = error.message?.includes('timeout');
+    const isMissingCreds = error.message?.includes('credenciais');
+    
+    console.error('[ML Route] Erro:', error.message);
+
+    if (isTimeout) {
+      return NextResponse.json(
+        { products: [], error: 'timeout', message: 'ML API demorou mais de 15s. Verifique as credenciais de acesso no painel.' },
+        { status: 504 }
+      );
+    }
+
     return NextResponse.json(
-      { error: 'Falha ao buscar produtos do Mercado Livre' },
+      { products: [], error: 'api_error', message: isMissingCreds
+          ? 'Configure o App ID e Client Secret do Mercado Livre em Configurações.'
+          : error.message || 'Falha ao buscar produtos do Mercado Livre' },
       { status: 500 }
     );
   }
