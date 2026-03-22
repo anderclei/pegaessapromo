@@ -31,30 +31,38 @@ export async function GET(request: Request) {
     );
 
     // Tenta buscar no cofre global de produtos (Cache)
-    const { data: cacheData } = await supabase
+    const { data: cacheData, error: cacheErr } = await supabase
       .from('settings')
       .select('config')
       .eq('id', 'hot_products_cache')
       .single();
 
     let products: any[] = [];
+    let debugInfo: any = { cacheSource: 'none' };
     
     if (cacheData?.config) {
-      // Pega tudo que é do Mercado Livre no cache
       const allCache = cacheData.config;
-      const mlFromCache = Object.values(allCache).flat().filter((p: any) => p?.platform === 'mercadolivre');
-      if (mlFromCache.length > 0) {
-        products = mlFromCache;
+      debugInfo.cacheKeys = Object.keys(allCache);
+      
+      // 1. Tenta a chave específica do sync-ml.js
+      if (allCache.mercadolivre_sync && Array.isArray(allCache.mercadolivre_sync)) {
+         products = allCache.mercadolivre_sync;
+         debugInfo.cacheSource = 'mercadolivre_sync';
+      } 
+      // 2. Fallback: procurar por plataforma em todo o cache
+      else {
+         const mlFromCache = Object.values(allCache).flat().filter((p: any) => p?.platform === 'mercadolivre');
+         if (mlFromCache.length > 0) {
+            products = mlFromCache;
+            debugInfo.cacheSource = 'platform_filter';
+         }
       }
     }
 
-    // Se o cache estiver vazio ou não tiver ML, tenta o scrape (pode falhar na Vercel)
-    if (products.length === 0) {
-      console.log('[ML API] Cache vazio ou sem ML, tentando scrape direto...');
-      products = await Promise.race([
-        scrapeMercadoLivre(category, type),
-        timeoutPromise,
-      ]);
+    // Se encontramos no cache, retorna imediatamente
+    if (products.length > 0) {
+      console.log(`[ML API SUCCESS] Found ${products.length} products in cache (${debugInfo.cacheSource})`);
+      return NextResponse.json({ products, source: 'hot_products_cache', cacheSource: debugInfo.cacheSource });
     }
 
     console.log(`[ML API SUCCESS] Found ${products.length} products for ${category}`);
