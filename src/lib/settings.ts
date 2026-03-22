@@ -1,14 +1,14 @@
 import { supabase } from './supabase';
 
 export interface AffiliateConfig {
-  mercadolivreId: string;
+  mercadolivreId?: string;
   mercadolivreAppId?: string;
   mercadolivreClientSecret?: string;
-  shopeeId: string;
-  aliexpressId: string;
-  amazonId: string;
-  amazonAccessKey: string;
-  amazonSecretKey: string;
+  shopeeId?: string;
+  aliexpressId?: string;
+  amazonId?: string;
+  amazonAccessKey?: string;
+  amazonSecretKey?: string;
   geminiKey?: string;
   aiProvider?: 'gemini' | 'ollama';
   ollamaModel?: string;
