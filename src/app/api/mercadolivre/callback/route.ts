@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import axios from 'axios';
 import { getSettings, saveSettings } from '@/lib/settings';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
@@ -13,7 +15,15 @@ export async function GET(request: Request) {
   try {
     const config = await getSettings();
     if (!config?.mercadolivreAppId || !config?.mercadolivreClientSecret) {
-      return NextResponse.json({ error: 'Configurações do Mercado Livre incompletas' }, { status: 500 });
+      console.error('[ML Auth] Settings incomplete in DB:', { 
+        hasId: !!config?.mercadolivreAppId, 
+        hasSecret: !!config?.mercadolivreClientSecret,
+        keysFound: Object.keys(config || {}) 
+      });
+      return NextResponse.json({ 
+        error: 'Configurações do Mercado Livre incompletas no banco compartilhado',
+        details: `ID: ${!!config?.mercadolivreAppId}, Secret: ${!!config?.mercadolivreClientSecret}` 
+      }, { status: 500 });
     }
 
     const { origin, pathname } = new URL(request.url);
