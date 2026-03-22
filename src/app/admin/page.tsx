@@ -226,13 +226,30 @@ export default function AdminDashboard() {
   };
 
   // --- Offers Actions ---
+  const [offerFilter, setOfferFilter] = useState<string>('all');  // 'all' | 'amazon' | 'mercadolivre' | 'shopee'
+  const [allOffers, setAllOffers] = useState<any[]>([]);  // Master list with ALL platforms
+
+  // Helper: merge new products into the master list, deduplicating by id
+  const mergeOffers = (newProducts: any[], platform: string) => {
+    setAllOffers(prev => {
+      const existingIds = new Set(prev.filter((p: any) => p.platform !== platform).map((p: any) => p.id));
+      const unique = newProducts.filter((p: any) => !existingIds.has(p.id));
+      const withoutPlatform = prev.filter((p: any) => p.platform !== platform);
+      return [...withoutPlatform, ...unique].sort((a: any, b: any) => (b.discount || 0) - (a.discount || 0));
+    });
+    setOffers(prev => {
+      const withoutPlatform = prev.filter((p: any) => p.platform !== platform);
+      return [...withoutPlatform, ...newProducts].sort((a: any, b: any) => (b.discount || 0) - (a.discount || 0));
+    });
+  };
+
   const fetchOffers = async () => {
     setLoadingOffers(true);
     try {
       const res = await fetch('/api/amazon?category=todos');
       const data = await res.json();
       
-      const uniqueIds = new Set();
+      const uniqueIds = new Set<string>();
       const products = (data.products || [])
         .filter((p: any) => {
           if (!p.id || p.price <= 0) return false;
@@ -246,9 +263,9 @@ export default function AdminDashboard() {
           const price = p.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
           const disc = p.discount && p.discount > 0 ? ` com ${p.discount}% OFF` : '';
           const copy = `🚨 *OFERTA IMPERDÍVEL${disc}!*\n\n*${p.title}*\n\n💰 *${price}*\n⭐ ${(p.rating||0).toFixed(1)} (${p.reviews||0} avaliações)\n📦 +${(p.sales||0).toLocaleString('pt-BR')} vendidos\n${p.freeShipping ? '🚚 *FRETE GRÁTIS*\n' : ''}\n👇 Link no site`;
-          return { ...p, _copy: copy, _fetchedAt: new Date().toISOString() };
+          return { ...p, platform: 'amazon', _copy: copy, _fetchedAt: new Date().toISOString() };
         });
-      setOffers(products);
+      mergeOffers(products, 'amazon');
     } catch (e) { console.error(e); }
     setLoadingOffers(false);
   };

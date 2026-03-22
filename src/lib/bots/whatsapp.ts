@@ -298,7 +298,7 @@ class WhatsAppBot {
   async sendToMultipleGroups(
     groupIds: string[],
     product: Product,
-    template: 'aida' | 'pas' | 'bab',
+    template: 'aida' | 'pas' | 'bab' | 'short',
     affiliateConfig: any
   ): Promise<PostLog[]> {
     const logs: PostLog[] = [];

@@ -9,7 +9,7 @@ class InstagramPoster {
 
   async generatePost(
     product: Product,
-    template: 'aida' | 'pas' | 'bab',
+    template: 'aida' | 'pas' | 'bab' | 'short',
     affiliateConfig: any
   ): Promise<InstagramPostData> {
     const affiliateLink = buildAffiliateLink(product, affiliateConfig);
@@ -88,7 +88,7 @@ class InstagramPoster {
 
   async generateMultiplePosts(
     products: Product[],
-    template: 'aida' | 'pas' | 'bab',
+    template: 'aida' | 'pas' | 'bab' | 'short',
     affiliateConfig: any
   ): Promise<InstagramPostData[]> {
     const results = [];
