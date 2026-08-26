@@ -26,6 +26,31 @@ export default function SiteHeader() {
             </div>
           </div>
         </div>
+        
+        {/* Navegação Rápida de Categorias no Header */}
+        <nav className="header-categories-bar" style={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '10px',
+          padding: '8px 16px',
+          background: '#111827',
+          borderTop: '1px solid #1f2937',
+          overflowX: 'auto',
+          whiteSpace: 'nowrap',
+        }}>
+          <Link href="/" style={{ color: '#ff4444', fontWeight: 'bold', textDecoration: 'none', fontSize: '0.85rem', padding: '4px 12px', background: 'rgba(255,68,68,0.1)', borderRadius: '20px' }}>
+            🛠️ Ferramentas & Construção
+          </Link>
+          <Link href="/?category=eletronicos" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '0.85rem', padding: '4px 12px' }}>
+            📱 Eletrônicos
+          </Link>
+          <Link href="/?category=eletrodomesticos" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '0.85rem', padding: '4px 12px' }}>
+            🍳 Eletrodomésticos
+          </Link>
+          <Link href="/?category=informatica" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '0.85rem', padding: '4px 12px' }}>
+            💻 Informática
+          </Link>
+        </nav>
       </header>
     </div>
   );

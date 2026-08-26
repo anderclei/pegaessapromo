@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Product, Promotion, Coupon } from '@/lib/types';
 import ProductCarousel from '@/components/ProductCarousel';
@@ -128,10 +129,28 @@ const DEFAULT_CATEGORIES = [
 ];
 
 export default function Home() {
+  return (
+    <Suspense fallback={<div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>Carregando promoções...</div>}>
+      <HomeContent />
+    </Suspense>
+  );
+}
+
+function HomeContent() {
+  const searchParams = useSearchParams();
+  const queryCategory = searchParams.get('category');
+  
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<{ id: string, label: string }[]>(DEFAULT_CATEGORIES);
-  const [selectedCategory, setSelectedCategory] = useState<string>('ferramentas');
+  const [selectedCategory, setSelectedCategory] = useState<string>(queryCategory || 'ferramentas');
+
+  // Atualizar quando a URL mudar
+  useEffect(() => {
+    if (queryCategory && queryCategory !== selectedCategory) {
+      setSelectedCategory(queryCategory);
+    }
+  }, [queryCategory]);
 
   useEffect(() => {
     async function fetchData() {
