@@ -23,7 +23,8 @@ export async function GET(request: Request) {
 
       // Trigger if:
       // 1. More than 5 mins since last sync
-      if (diffMins >= 5) {
+      // Trigger se o último sync foi há mais de 60 minutos
+      if (diffMins >= 60) {
         console.log(`[AutoSync] Triggering scheduled sync (Last: ${lastSync.toISOString()}, Now: ${now.toISOString()})...`);
         fetch(`${new URL(request.url).origin}/api/amazon/sync`, { 
           method: 'POST', 

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Product, Platform } from '@/lib/types';
+import { Product, Platform, Coupon } from '@/lib/types';
+import Link from 'next/link';
 import { generateAllCopies, buildAffiliateLink, COPY_TEMPLATES } from '@/lib/copywriter';
 import { BotStatus, WhatsAppGroup, PostLog } from '@/lib/bots/types';
 import { GroupPool, PoolGroup } from '@/lib/bots/group-pools';
@@ -11,12 +12,181 @@ const formatPrice = (price: number) => {
   return price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
+// ─── Shopee API Accordion Component ──────────────────────────────────────────
 
+function ShopeeApiAccordion({
+  affiliateConfig,
+  setAffiliateConfig,
+  activeAccordion,
+  setActiveAccordion,
+}: {
+  affiliateConfig: any;
+  setAffiliateConfig: (c: any) => void;
+  activeAccordion: string;
+  setActiveAccordion: (s: string) => void;
+}) {
+  const [syncing, setSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<{ synced: boolean; lastSync?: string; totalProducts?: number; syncMode?: string } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/shopee/sync')
+      .then(r => r.json())
+      .then(setSyncStatus)
+      .catch(() => {});
+  }, []);
+
+  const handleSync = async () => {
+    if (!affiliateConfig.shopeePartnerId || !affiliateConfig.shopeePartnerKey) {
+      alert('Preencha o Partner ID e Partner Key primeiro!');
+      return;
+    }
+    setSyncing(true);
+    try {
+      // Salva as configs antes de sincronizar
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(affiliateConfig),
+      });
+      const res = await fetch('/api/shopee/sync', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        alert(`✅ ${data.message}`);
+        setSyncStatus({ synced: true, lastSync: data.syncedAt, totalProducts: Object.values(data.results as Record<string, number>).reduce((a, b) => a + b, 0), syncMode: 'api' });
+      } else {
+        alert(`❌ Erro: ${data.error}\n${data.hint || ''}`);
+      }
+    } catch (e) {
+      alert('Erro de rede ao sincronizar.');
+    }
+    setSyncing(false);
+  };
+
+  const hasCredentials = !!(affiliateConfig.shopeePartnerId && affiliateConfig.shopeePartnerKey);
+  const isOpen = activeAccordion === 'shopee';
+
+  return (
+    <div className="admin-card" style={{ marginTop: '1rem', cursor: 'pointer', padding: '15px 25px', backgroundColor: isOpen ? '#fff7ed' : '#fff' }}
+      onClick={() => setActiveAccordion(isOpen ? '' : 'shopee')}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1e293b' }}>🛍️ Shopee (API Oficial)</h3>
+          {hasCredentials ? (
+            <span style={{ fontSize: '0.7rem', background: '#dcfce7', color: '#166534', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>🟢 Configurado</span>
+          ) : (
+            <span style={{ fontSize: '0.7rem', background: '#fee2e2', color: '#991b1b', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>🔴 Não configurado</span>
+          )}
+          {syncStatus?.synced && (
+            <span style={{ fontSize: '0.7rem', background: '#fff3d4', color: '#92400e', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
+              {syncStatus.totalProducts} produtos {syncStatus.syncMode === 'api' ? '(API)' : '(cache)'}
+            </span>
+          )}
+        </div>
+        <span>{isOpen ? '▲' : '▼'}</span>
+      </div>
+
+      {isOpen && (
+        <div style={{ marginTop: '20px', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }} onClick={e => e.stopPropagation()}>
+          <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem' }}>
+            Integração real com a <strong>Shopee Open Platform</strong>. Com ela, o sistema busca produtos reais com imagens e links 100% funcionais.
+          </p>
+
+          {/* Status da última sync */}
+          {syncStatus?.synced && (
+            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '10px 14px', marginBottom: '1.2rem', fontSize: '0.78rem', color: '#166534' }}>
+              ✅ Última sync: {syncStatus.lastSync ? new Date(syncStatus.lastSync).toLocaleString('pt-BR') : '—'} · {syncStatus.totalProducts} produtos · Modo: {syncStatus.syncMode === 'api' ? 'API Real' : 'Cache manual'}
+            </div>
+          )}
+
+          <div className="form-field">
+            <label style={{ color: '#333', fontWeight: 'bold' }}>Partner ID <span style={{ fontWeight: 'normal', color: '#64748b' }}>(Shopee Open Platform)</span></label>
+            <input
+              type="text" placeholder="Ex: 1234567"
+              style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
+              value={affiliateConfig.shopeePartnerId || ''}
+              onChange={e => setAffiliateConfig({ ...affiliateConfig, shopeePartnerId: e.target.value })}
+            />
+          </div>
+
+          <div className="form-field">
+            <label style={{ color: '#333', fontWeight: 'bold' }}>Partner Key <span style={{ fontWeight: 'normal', color: '#64748b' }}>(chave HMAC-SHA256)</span></label>
+            <input
+              type="password" placeholder="Cole sua Partner Key aqui"
+              style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
+              value={affiliateConfig.shopeePartnerKey || ''}
+              onChange={e => setAffiliateConfig({ ...affiliateConfig, shopeePartnerKey: e.target.value })}
+            />
+          </div>
+
+          <div className="form-field">
+            <label style={{ color: '#333', fontWeight: 'bold' }}>Shop ID <span style={{ fontWeight: 'normal', color: '#64748b' }}>(opcional, se você também é lojista)</span></label>
+            <input
+              type="text" placeholder="Deixe em branco se for só afiliado"
+              style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
+              value={affiliateConfig.shopeeShopId || ''}
+              onChange={e => setAffiliateConfig({ ...affiliateConfig, shopeeShopId: e.target.value })}
+            />
+          </div>
+
+          <div className="form-field">
+            <label style={{ color: '#333', fontWeight: 'bold' }}>ID de Afiliado <span style={{ fontWeight: 'normal', color: '#64748b' }}>(aparece nos links, ex: AF12345)</span></label>
+            <input
+              type="text" placeholder="Ex: AF12345 ou seu username"
+              style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc' }}
+              value={affiliateConfig.shopeeId || ''}
+              onChange={e => setAffiliateConfig({ ...affiliateConfig, shopeeId: e.target.value })}
+            />
+          </div>
+
+          {/* Guia de como obter as credentials */}
+          <div style={{ background: '#fff7ed', padding: '15px', borderRadius: '10px', border: '1px solid #fed7aa', margin: '1rem 0' }}>
+            <h4 style={{ margin: '0 0 10px 0', color: '#9a3412', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              📋 Como obter suas credenciais
+            </h4>
+            <ol style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.78rem', color: '#9a3412', lineHeight: '1.8' }}>
+              <li>Acesse <strong>open.shopee.com</strong> e faça login com sua conta Shopee</li>
+              <li>Clique em <strong>"Apply to be a partner"</strong> (ou "Aplicar como parceiro")</li>
+              <li>Preencha o formulário com dados do seu site <strong>pegaessapromo.com.br</strong></li>
+              <li>Após aprovação, vá em <strong>My Apps → App Management</strong></li>
+              <li>Copie o <strong>Partner ID</strong> e a <strong>Partner Key</strong> e cole aqui</li>
+            </ol>
+            <button
+              style={{ marginTop: '12px', background: '#ea580c', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem' }}
+              onClick={() => window.open('https://open.shopee.com/', '_blank')}
+            >
+              🔗 Acessar Shopee Open Platform
+            </button>
+          </div>
+
+          {/* Sync button */}
+          <div style={{ display: 'flex', gap: '10px', marginTop: '1.2rem' }}>
+            <button
+              className="btn btn-primary"
+              style={{ flex: 1, backgroundColor: '#ea580c', border: 'none', cursor: syncing ? 'not-allowed' : 'pointer', opacity: syncing ? 0.7 : 1 }}
+              onClick={handleSync}
+              disabled={syncing}
+            >
+              {syncing ? '🔄 Sincronizando...' : '🔄 Sincronizar Produtos Agora'}
+            </button>
+          </div>
+          <p style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '8px', textAlign: 'center' }}>
+            Sem credenciais, o sistema usa o catálogo curado local (12 produtos). Com credenciais, busca produtos reais da Shopee com imagens e links 100% funcionais.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'settings' | 'bots' | 'categories' | 'pools' | 'offers'>('settings');
+  const [activeTab, setActiveTab] = useState<'settings' | 'bots' | 'categories' | 'pools' | 'offers' | 'coupons'>('offers');
   const [loading, setLoading] = useState(true);
   const [activePlatform, setActivePlatform] = useState<Platform>('amazon');
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [newCoupon, setNewCoupon] = useState<Partial<Coupon>>({});
+  const [configLoaded, setConfigLoaded] = useState(false);
   
   // WhatsApp Bot State
   const [botStatus, setBotStatus] = useState<BotStatus>('disconnected');
@@ -42,6 +212,10 @@ export default function AdminDashboard() {
     amazonAccessKey: 'amzn1.application-oa2-client.27e8dc0d2d1d48b29a171860cf840a12',
     amazonSecretKey: 'amzn1.oa2-cs.v1.b69c917a94b07978ac42e9a484a4728ce6c7461afe375491a4701179795bb397a',
     shopeeId: '',
+    shopeePartnerId: '',
+    shopeePartnerKey: '',
+    shopeeShopId: '',
+    shopeeShopToken: '',
     aliexpressId: '',
     mercadolivreId: '', 
     mercadolivreAppId: '',
@@ -57,17 +231,19 @@ export default function AdminDashboard() {
     forbiddenWords: 'cabo, adaptador, fone com fio, fone intra-auricular com fio, capinha, película, carregador de parede',
     igAccountId: '',
     igAccessToken: '',
-    enabledSources: { amazon: true, mercadolivre: false, shopee: false } as { amazon?: boolean; mercadolivre?: boolean; shopee?: boolean }
+    enabledSources: { amazon: true, mercadolivre: false, shopee: false, magalu: true } as { amazon?: boolean; mercadolivre?: boolean; shopee?: boolean; magalu?: boolean }
   });
   const [saveStatus, setSaveStatus] = useState(false);
   const [activeAccordion, setActiveAccordion] = useState<string>('amazon');
   
   // Categories State
-  const [dbCategories, setDbCategories] = useState<{id: string, label: string, amazonSlug?: string}[]>([]);
-  const [newCategory, setNewCategory] = useState({ id: '', label: '', amazonSlug: '' });
+  const [dbCategories, setDbCategories] = useState<{id: string, label: string, amazonSlug?: string, shopeeSlug?: string, mlCategoryId?: string}[]>([]);
+  const [newCategory, setNewCategory] = useState({ id: '', label: '', amazonSlug: '', shopeeSlug: '', mlCategoryId: '' });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState('');
   const [editAmazonSlug, setEditAmazonSlug] = useState('');
+  const [editShopeeSlug, setEditShopeeSlug] = useState('');
+  const [editMlCategoryId, setEditMlCategoryId] = useState('');
 
   // Pools State
   const [pools, setPools] = useState<GroupPool[]>([]);
@@ -86,6 +262,8 @@ export default function AdminDashboard() {
     setEditingId(cat.id);
     setEditLabel(cat.label);
     setEditAmazonSlug(cat.amazonSlug || '');
+    setEditShopeeSlug(cat.shopeeSlug || '');
+    setEditMlCategoryId(cat.mlCategoryId || '');
   };
 
   const handleAddCategory = async () => {
@@ -98,7 +276,7 @@ export default function AdminDashboard() {
       });
       if (res.ok) {
         setDbCategories([...dbCategories, newCategory]);
-        setNewCategory({ id: '', label: '', amazonSlug: '' });
+        setNewCategory({ id: '', label: '', amazonSlug: '', shopeeSlug: '', mlCategoryId: '' });
       }
     } catch (err) { console.error(err); }
   };
@@ -108,7 +286,13 @@ export default function AdminDashboard() {
       const res = await fetch('/api/categories', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, label: editLabel, amazonSlug: editAmazonSlug })
+        body: JSON.stringify({ 
+          id, 
+          label: editLabel, 
+          amazonSlug: editAmazonSlug,
+          shopeeSlug: editShopeeSlug,
+          mlCategoryId: editMlCategoryId
+        })
       });
       if (res.ok) {
         const updated = await res.json();
@@ -230,16 +414,28 @@ export default function AdminDashboard() {
   const [allOffers, setAllOffers] = useState<any[]>([]);  // Master list with ALL platforms
 
   // Helper: merge new products into the master list, deduplicating by id
+  // Ordenação: mais recentes primeiro, depois por maior desconto
+  const sortOffers = (items: any[]) => {
+    return items.sort((a: any, b: any) => {
+      // 1. Mais recentes primeiro
+      const timeA = a._fetchedAt ? new Date(a._fetchedAt).getTime() : 0;
+      const timeB = b._fetchedAt ? new Date(b._fetchedAt).getTime() : 0;
+      if (Math.abs(timeB - timeA) > 60000) return timeB - timeA; // Diferença > 1min = priorizar recente
+      // 2. Dentro do mesmo lote, maior desconto primeiro
+      return (b.discount || 0) - (a.discount || 0);
+    });
+  };
+
   const mergeOffers = (newProducts: any[], platform: string) => {
     setAllOffers(prev => {
       const existingIds = new Set(prev.filter((p: any) => p.platform !== platform).map((p: any) => p.id));
       const unique = newProducts.filter((p: any) => !existingIds.has(p.id));
       const withoutPlatform = prev.filter((p: any) => p.platform !== platform);
-      return [...withoutPlatform, ...unique].sort((a: any, b: any) => (b.discount || 0) - (a.discount || 0));
+      return sortOffers([...withoutPlatform, ...unique]);
     });
     setOffers(prev => {
       const withoutPlatform = prev.filter((p: any) => p.platform !== platform);
-      return [...withoutPlatform, ...newProducts].sort((a: any, b: any) => (b.discount || 0) - (a.discount || 0));
+      return sortOffers([...withoutPlatform, ...newProducts]);
     });
   };
 
@@ -327,6 +523,44 @@ export default function AdminDashboard() {
       mergeOffers(products, 'shopee');
     } catch (e) { console.error(e); }
     setLoadingOffers(false);
+  };
+
+  const fetchOffersMagalu = async () => {
+    setLoadingOffers(true);
+    try {
+      const res = await fetch('/api/magalu?category=eletronicos');
+      const data = await res.json();
+      
+      const uniqueIds = new Set<string>();
+      const products = (data.products || [])
+        .filter((p: any) => {
+          if (!p.id || p.price <= 0) return false;
+          if (uniqueIds.has(p.id)) return false;
+          uniqueIds.add(p.id);
+          return true;
+        })
+        .sort((a: any, b: any) => (b.discount || 0) - (a.discount || 0))
+        .slice(0, 30)
+        .map((p: any) => {
+          const price = p.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+          const disc = p.discount && p.discount > 0 ? ` com ${p.discount}% OFF` : '';
+          const copy = `🟣 *MAGALU${disc}!*\n\n*${p.title}*\n\n💰 *${price}*\n${p.freeShipping ? '🚚 *FRETE GRÁTIS*\n' : ''}\n👇 Link no site`;
+          return { ...p, platform: 'magalu', _copy: copy, _fetchedAt: new Date().toISOString() };
+        });
+      mergeOffers(products, 'magalu');
+    } catch (e) { console.error(e); }
+    setLoadingOffers(false);
+  };
+
+  // Busca TODAS as plataformas ativas em paralelo
+  const fetchAllOffers = async () => {
+    const sources = affiliateConfig.enabledSources || { amazon: true, mercadolivre: true, shopee: true, magalu: true };
+    const promises: Promise<void>[] = [];
+    if (sources.amazon !== false) promises.push(fetchOffers());
+    if (sources.mercadolivre !== false) promises.push(fetchOffersML());
+    if (sources.magalu !== false) promises.push(fetchOffersMagalu());
+    if (sources.shopee !== false) promises.push(fetchOffersShopee());
+    await Promise.allSettled(promises);
   };
 
   const handleSendOffer = async (product: any) => {
@@ -647,6 +881,7 @@ export default function AdminDashboard() {
           const cloudConfig = await res.json();
           if (cloudConfig && Object.keys(cloudConfig).length > 0) {
             setAffiliateConfig(prev => ({ ...prev, ...cloudConfig }));
+            setConfigLoaded(true);
             return;
           }
         }
@@ -675,6 +910,7 @@ export default function AdminDashboard() {
             })); 
           } catch {}
       }
+      setConfigLoaded(true);
     };
 
     loadConfig();
@@ -687,8 +923,47 @@ export default function AdminDashboard() {
     return () => clearInterval(interval);
   }, [activePlatform, syncBotState]);
 
+  // Aguarda as configurações carregarem antes de buscar ofertas
   useEffect(() => {
     if (activeTab === 'pools') fetchPools();
+    if (activeTab === 'offers' && offers.length === 0 && configLoaded) fetchAllOffers();
+  }, [activeTab, configLoaded]);
+
+  
+  const fetchCoupons = async () => {
+    try {
+      const res = await fetch('/api/coupons');
+      if (res.ok) setCoupons(await res.json());
+    } catch(e) {}
+  };
+  
+  const handleAddCoupon = async () => {
+    if (!newCoupon.code || !newCoupon.discount || !newCoupon.store || !newCoupon.link) {
+      alert('Preencha código, desconto, loja e link do cupom!');
+      return;
+    }
+    try {
+      const res = await fetch('/api/coupons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newCoupon)
+      });
+      if (res.ok) {
+        setNewCoupon({});
+        fetchCoupons();
+      }
+    } catch(e) {}
+  };
+  
+  const handleDeleteCoupon = async (id: string) => {
+    if(confirm('Excluir cupom?')) {
+      await fetch('/api/coupons?id=' + id, { method: 'DELETE' });
+      fetchCoupons();
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'coupons') fetchCoupons();
   }, [activeTab]);
 
   const handleSaveSettings = async () => {
@@ -711,7 +986,7 @@ export default function AdminDashboard() {
   return (
     <div className="admin-container">
       <div className="catalogue-container">
-        <div className="admin-tabs" style={{ display: 'flex', alignItems: 'center', width: '100%', overflowX: 'auto' }}>
+        <div className="admin-tabs" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center', width: '100%', overflowX: 'auto' }}>
           <button 
             onClick={() => setActiveTab('bots')}
             className={`admin-tab ${activeTab === 'bots' ? 'active' : ''}`}
@@ -731,7 +1006,7 @@ export default function AdminDashboard() {
             🔗 Links Inteligentes
           </button>
           <button 
-            onClick={() => { setActiveTab('offers'); if (offers.length === 0) fetchOffers(); }}
+            onClick={() => { setActiveTab('offers'); if (offers.length === 0) fetchAllOffers(); }}
             className={`admin-tab ${activeTab === 'offers' ? 'active' : ''}`}
           >
             📦 Ofertas
@@ -748,7 +1023,15 @@ export default function AdminDashboard() {
             display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto', padding: '0 15px', 
             background: '#f8fafc', borderRadius: '20px', border: '1px solid #e2e8f0', height: '36px' 
           }}>
-             <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: botStatus === 'connected' ? '#22c55e' : (botStatus === 'qr_ready' ? '#eab308' : '#ef4444') }}></div>
+             <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: botStatus === 'connected' ? '#22c55e' : (botStatus === 'qr_ready' ? '#eab308' : '#ef4444') }}>
+          <button 
+            onClick={() => setActiveTab('coupons')}
+            className={`admin-tab ${activeTab === 'coupons' ? 'active' : ''}`}
+            style={{ padding: '0.75rem 1.5rem', background: activeTab === 'coupons' ? '#e2e8f0' : 'transparent', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: activeTab === 'coupons' ? '600' : '400', borderRadius: '0.5rem', color: '#1e293b' }}
+          >
+            🎟️ Cupons
+          </button>
+</div>
              <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', whiteSpace: 'nowrap' }}>
                {botStatus === 'connected' ? 'Zap Conectado' : (botStatus === 'qr_ready' ? 'Aguardando QR' : 'Zap Desconectado')}
              </span>
@@ -778,9 +1061,10 @@ export default function AdminDashboard() {
                 {[
                   { key: 'amazon',        label: '🛒 Amazon',         color: '#f59e0b' },
                   { key: 'mercadolivre',  label: '🤝 Mercado Livre',  color: '#fbbf24' },
+                  { key: 'magalu',        label: '🟣 Magalu',         color: '#8b5cf6' },
                   { key: 'shopee',        label: '🛍️ Shopee',         color: '#f97316' },
                 ].map(({ key, label, color }) => {
-                  const enabled = affiliateConfig.enabledSources?.[key as 'amazon' | 'mercadolivre' | 'shopee'] !== false;
+                  const enabled = affiliateConfig.enabledSources?.[key as 'amazon' | 'mercadolivre' | 'shopee' | 'magalu'] !== false;
                   return (
                     <button
                       key={key}
@@ -960,6 +1244,49 @@ export default function AdminDashboard() {
                   </div>
                 )}
              </div>
+
+            {/* ── Shopee Open API ── */}
+            <ShopeeApiAccordion
+              affiliateConfig={affiliateConfig}
+              setAffiliateConfig={setAffiliateConfig}
+              activeAccordion={activeAccordion}
+              setActiveAccordion={setActiveAccordion}
+            />
+
+            {/* ── Magalu ── */}
+            <div className="admin-card" style={{ marginTop: '1rem', cursor: 'pointer', padding: '15px 25px', backgroundColor: activeAccordion === 'magalu' ? '#f5f3ff' : '#fff' }} onClick={() => setActiveAccordion(activeAccordion === 'magalu' ? '' : 'magalu')}>
+               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                   <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#1e293b' }}>🟣 Magazine Luiza (Magalu)</h3>
+                   <span style={{ fontSize: '0.7rem', background: '#dcfce7', color: '#166534', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>🟢 Automático</span>
+                 </div>
+                 <span>{activeAccordion === 'magalu' ? '▲' : '▼'}</span>
+               </div>
+
+               {activeAccordion === 'magalu' && (
+                 <div style={{ marginTop: '20px', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }} onClick={e => e.stopPropagation()}>
+                   <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.5rem' }}>
+                     O Magalu funciona <strong>automaticamente</strong> — não precisa de credenciais. O sistema extrai produtos reais diretamente do site magazineluiza.com.br.
+                   </p>
+
+                   <div style={{ background: '#f5f3ff', padding: '15px', borderRadius: '10px', border: '1px solid #ddd6fe', marginBottom: '1rem' }}>
+                     <h4 style={{ margin: '0 0 10px 0', color: '#6d28d9', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                       ✅ Como funciona
+                     </h4>
+                     <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.78rem', color: '#6d28d9', lineHeight: '1.8' }}>
+                       <li>Busca produtos reais do site da Magazine Luiza</li>
+                       <li>Preços, títulos e imagens são extraídos diretamente da página</li>
+                       <li>Cache automático de 2 horas para performance</li>
+                       <li>Produtos exibidos com o selo Magalu no site e ofertas</li>
+                     </ul>
+                   </div>
+
+                   <p style={{ fontSize: '0.72rem', color: '#94a3b8', textAlign: 'center' }}>
+                     💡 Para desativar o Magalu, use o botão "Fontes de Ofertas Ativas" acima.
+                   </p>
+                 </div>
+               )}
+            </div>
 
             <div className="admin-card" style={{ marginTop: '1rem', cursor: 'pointer', padding: '15px 25px', backgroundColor: activeAccordion === 'ia' ? '#f0fdf4' : '#fff' }} onClick={() => setActiveAccordion(activeAccordion === 'ia' ? '' : 'ia')}>
                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1532,7 +1859,99 @@ export default function AdminDashboard() {
           </section>
         )}
 
-        {activeTab === 'categories' && (
+        
+      {activeTab === 'coupons' && (
+        <div className="settings-section" style={{ background: '#fff', borderRadius: '12px', padding: '24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1.5rem', color: '#1e293b' }}>🎟️ Gestão de Cupons</h2>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.5rem' }}>Loja</label>
+              <select 
+                value={newCoupon.store || ''} 
+                onChange={e => setNewCoupon({...newCoupon, store: e.target.value as Platform})}
+                style={{ width: '100%', padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '0.5rem' }}
+              >
+                <option value="">Selecione...</option>
+                <option value="shopee">Shopee</option>
+                <option value="amazon">Amazon</option>
+                <option value="mercadolivre">Mercado Livre</option>
+                <option value="magalu">Magalu</option>
+                <option value="aliexpress">AliExpress</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.5rem' }}>Código do Cupom</label>
+              <input 
+                type="text" 
+                placeholder="Ex: QUERO10" 
+                value={newCoupon.code || ''} 
+                onChange={e => setNewCoupon({...newCoupon, code: e.target.value.toUpperCase()})}
+                style={{ width: '100%', padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '0.5rem' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.5rem' }}>Desconto (R$ ou %)</label>
+              <input 
+                type="text" 
+                placeholder="Ex: R$ 100,00 ou 10%" 
+                value={newCoupon.discount || ''} 
+                onChange={e => setNewCoupon({...newCoupon, discount: e.target.value})}
+                style={{ width: '100%', padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '0.5rem' }}
+              />
+            </div>
+            <div style={{ gridColumn: 'span 3' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.5rem' }}>Descrição Breve (Opcional)</label>
+              <input 
+                type="text" 
+                placeholder="Ex: Válido em todo o site até sexta" 
+                value={newCoupon.description || ''} 
+                onChange={e => setNewCoupon({...newCoupon, description: e.target.value})}
+                style={{ width: '100%', padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '0.5rem' }}
+              />
+            </div>
+            <div style={{ gridColumn: 'span 3' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.5rem' }}>Link do Afiliado</label>
+              <input 
+                type="url" 
+                placeholder="Ex: https://shopee.com.br..." 
+                value={newCoupon.link || ''} 
+                onChange={e => setNewCoupon({...newCoupon, link: e.target.value})}
+                style={{ width: '100%', padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '0.5rem' }}
+              />
+            </div>
+          </div>
+          
+          <button 
+            onClick={handleAddCoupon}
+            style={{ padding: '0.75rem 1.5rem', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '0.5rem', fontWeight: '500', cursor: 'pointer' }}
+          >
+            Adicionar Cupom
+          </button>
+
+          <h3 style={{ fontSize: '1.1rem', fontWeight: '600', marginTop: '3rem', marginBottom: '1rem', color: '#1e293b' }}>Cupons Ativos</h3>
+          <div style={{ display: 'grid', gap: '1rem' }}>
+            {coupons.map(c => (
+              <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.5rem' }}>
+                <div>
+                  <span style={{ display: 'inline-block', padding: '0.25rem 0.5rem', background: '#e2e8f0', borderRadius: '0.25rem', fontSize: '0.75rem', fontWeight: '600', textTransform: 'uppercase', marginRight: '0.5rem' }}>{c.store}</span>
+                  <strong style={{ fontSize: '1.1rem', color: '#ef4444' }}>{c.code}</strong>
+                  <span style={{ margin: '0 0.5rem', color: '#64748b' }}>-</span>
+                  <strong style={{ color: '#10b981' }}>{c.discount}</strong>
+                  {c.description && <p style={{ fontSize: '0.875rem', color: '#64748b', marginTop: '0.25rem' }}>{c.description}</p>}
+                </div>
+                <div>
+                  <a href={c.link} target="_blank" rel="noreferrer" style={{ fontSize: '0.875rem', color: '#3b82f6', textDecoration: 'none', marginRight: '1rem' }}>Testar Link</a>
+                  <button onClick={() => handleDeleteCoupon(c.id)} style={{ padding: '0.5rem', background: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}>Excluir</button>
+                </div>
+              </div>
+            ))}
+            {coupons.length === 0 && <p style={{ color: '#64748b' }}>Nenhum cupom ativo no momento.</p>}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'categories' && (
           <section className="settings-section">
             <h2>📂 Gestão de Categorias</h2>
             <p className="admin-subtitle">Configure as abas do site e os links da Amazon para cada uma.</p>
@@ -1564,7 +1983,25 @@ export default function AdminDashboard() {
                     type="text" 
                     value={newCategory.amazonSlug}
                     onChange={e => setNewCategory({...newCategory, amazonSlug: e.target.value})}
-                    placeholder="Ex: computers"
+                    placeholder="Ex: electronics"
+                  />
+                </div>
+                <div className="form-field" style={{ flex: 1 }}>
+                  <label>Shopee Keyword</label>
+                  <input 
+                    type="text" 
+                    value={newCategory.shopeeSlug}
+                    onChange={e => setNewCategory({...newCategory, shopeeSlug: e.target.value})}
+                    placeholder="Ex: fone bluetooth"
+                  />
+                </div>
+                <div className="form-field" style={{ flex: 1 }}>
+                  <label>ML Category ID</label>
+                  <input 
+                    type="text" 
+                    value={newCategory.mlCategoryId}
+                    onChange={e => setNewCategory({...newCategory, mlCategoryId: e.target.value})}
+                    placeholder="Ex: MLB1648"
                   />
                 </div>
                 <button className="btn btn-primary" style={{ height: '42px' }} onClick={handleAddCategory}> Adicionar </button>
@@ -1603,12 +2040,30 @@ export default function AdminDashboard() {
                               />
                             </div>
                             <div style={{ flex: 1 }}>
-                              <label style={{ fontSize: '10px', display: 'block' }}>Amazon Slug</label>
+                              <label style={{ fontSize: '10px', display: 'block' }}>Amazon</label>
                               <input 
                                 className="form-field-input"
                                 style={{ width: '100%' }}
                                 value={editAmazonSlug}
                                 onChange={e => setEditAmazonSlug(e.target.value)}
+                              />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <label style={{ fontSize: '10px', display: 'block' }}>Shopee</label>
+                              <input 
+                                className="form-field-input"
+                                style={{ width: '100%' }}
+                                value={editShopeeSlug}
+                                onChange={e => setEditShopeeSlug(e.target.value)}
+                              />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <label style={{ fontSize: '10px', display: 'block' }}>ML ID</label>
+                              <input 
+                                className="form-field-input"
+                                style={{ width: '100%' }}
+                                value={editMlCategoryId}
+                                onChange={e => setEditMlCategoryId(e.target.value)}
                               />
                             </div>
                             <button className="btn btn-sm" style={{ alignSelf: 'flex-end', backgroundColor: '#22c55e', color: 'white' }} onClick={() => handleUpdateCategory(cat.id)}>✅</button>
@@ -1619,7 +2074,9 @@ export default function AdminDashboard() {
                             <span style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{cat.label}</span>
                             <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '4px' }}>
                               <span style={{ marginRight: '1rem' }}>ID: <code>{cat.id}</code></span>
-                              <span>Amazon: <code style={{ color: '#2563eb' }}>{cat.amazonSlug || 'padrão'}</code></span>
+                              <span style={{ marginRight: '1rem' }}>Amazon: <code style={{ color: '#2563eb' }}>{cat.amazonSlug || '-'}</code></span>
+                              <span style={{ marginRight: '1rem' }}>Shopee: <code style={{ color: '#ea580c' }}>{cat.shopeeSlug || '-'}</code></span>
+                              <span>ML: <code style={{ color: '#eab308' }}>{cat.mlCategoryId || '-'}</code></span>
                             </div>
                           </div>
                         )}
@@ -1776,12 +2233,28 @@ export default function AdminDashboard() {
           <section className="settings-section">
             <div className="admin-header-row" style={{ marginBottom: '1.5rem' }}>
               <div className="admin-title-section">
-                <h2>📦 Ofertas para Disparo Manual</h2>
-                <p>Veja as últimas ofertas buscadas e envie individualmente para o grupo quando quiser.</p>
+                <h2>📦 Central de Ofertas</h2>
+                <p>Ofertas reais e atualizadas de todas as lojas. Envie para seus grupos ou salve no site.</p>
               </div>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button className="btn btn-secondary" onClick={fetchOffers} disabled={loadingOffers}>
-                  {loadingOffers ? '⏳ Buscando...' : '🔄 Recarregar Amazon'}
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={fetchAllOffers} 
+                  disabled={loadingOffers}
+                  style={{ 
+                    background: loadingOffers ? '#94a3b8' : 'linear-gradient(135deg, #ef4444, #dc2626)', 
+                    color: '#fff', 
+                    border: 'none', 
+                    padding: '12px 24px', 
+                    borderRadius: '12px', 
+                    fontWeight: 'bold', 
+                    fontSize: '0.95rem',
+                    cursor: loadingOffers ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 4px 6px -1px rgba(239, 68, 68, 0.3)',
+                    display: 'flex', alignItems: 'center', gap: '8px'
+                  }}
+                >
+                  {loadingOffers ? '⏳ Atualizando...' : '🔄 Atualizar Ofertas'}
                 </button>
               </div>
             </div>
@@ -1789,6 +2262,14 @@ export default function AdminDashboard() {
             {/* ── Platform Fetch Buttons ── */}
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '1rem', alignItems: 'center' }}>
               <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'bold' }}>Buscar na loja:</span>
+              <button
+                className="btn btn-sm"
+                onClick={fetchAllOffers}
+                disabled={loadingOffers}
+                style={{ background: '#0f172a', color: '#fff', border: '1px solid #1e293b', fontWeight: 'bold', fontSize: '0.78rem' }}
+              >
+                {loadingOffers ? '⏳' : '🔄'} Buscar Todas
+              </button>
               <button
                 className="btn btn-sm"
                 onClick={fetchOffers}
@@ -1812,6 +2293,14 @@ export default function AdminDashboard() {
                 style={{ background: '#fff1f2', color: '#9f1239', border: '1px solid #fecdd3', fontWeight: 'bold', fontSize: '0.78rem' }}
               >
                 {loadingOffers ? '⏳' : '🛍️'} Shopee
+              </button>
+              <button
+                className="btn btn-sm"
+                onClick={fetchOffersMagalu}
+                disabled={loadingOffers}
+                style={{ background: '#f5f3ff', color: '#6d28d9', border: '1px solid #ddd6fe', fontWeight: 'bold', fontSize: '0.78rem' }}
+              >
+                {loadingOffers ? '⏳' : '🟣'} Magalu
               </button>
               <button
                 className="btn btn-sm"
@@ -1841,6 +2330,7 @@ export default function AdminDashboard() {
                 { key: 'amazon', label: '🛒 Amazon', count: offers.filter((o: any) => o.platform === 'amazon').length },
                 { key: 'mercadolivre', label: '🤝 Mercado Livre', count: offers.filter((o: any) => o.platform === 'mercadolivre').length },
                 { key: 'shopee', label: '🛍️ Shopee', count: offers.filter((o: any) => o.platform === 'shopee').length },
+                { key: 'magalu', label: '🟣 Magalu', count: offers.filter((o: any) => o.platform === 'magalu').length },
               ].map(({ key, label, count }) => (
                 <button
                   key={key}
@@ -1876,7 +2366,7 @@ export default function AdminDashboard() {
               <div style={{ textAlign: 'center', padding: '4rem', color: '#94a3b8' }}>
                 <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📭</div>
                 <p>Nenhuma oferta {offerFilter !== 'all' ? `da ${offerFilter}` : ''} carregada ainda.</p>
-                <button className="btn btn-primary" style={{ marginTop: '1rem' }} onClick={fetchOffers}>🔍 Buscar Ofertas Agora</button>
+                <button className="btn btn-primary" style={{ marginTop: '1rem' }} onClick={fetchAllOffers}>🔍 Buscar Ofertas Agora</button>
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.5rem' }}>
@@ -1888,10 +2378,16 @@ export default function AdminDashboard() {
                       {product.platform === 'amazon' && <span style={{ fontSize: '0.65rem', background: '#ff9900', color: '#fff', padding: '2px 7px', borderRadius: '8px', fontWeight: 'bold' }}>🛒 Amazon</span>}
                       {product.platform === 'mercadolivre' && <span style={{ fontSize: '0.65rem', background: '#ffe600', color: '#333', padding: '2px 7px', borderRadius: '8px', fontWeight: 'bold' }}>🤝 ML</span>}
                       {product.platform === 'shopee' && <span style={{ fontSize: '0.65rem', background: '#ee4d2d', color: '#fff', padding: '2px 7px', borderRadius: '8px', fontWeight: 'bold' }}>🛍️ Shopee</span>}
+                      {product.platform === 'magalu' && <span style={{ fontSize: '0.65rem', background: '#0086ff', color: '#fff', padding: '2px 7px', borderRadius: '8px', fontWeight: 'bold' }}>🟣 Magalu</span>}
                     </div>
 
                     {/* Product Image */}
-                    <div style={{ position: 'relative', height: '180px', background: '#f8fafc', overflow: 'hidden' }}>
+                    <a 
+                      href={product.url || '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ display: 'block', position: 'relative', height: '180px', background: '#f8fafc', overflow: 'hidden', cursor: 'pointer' }}
+                    >
                       <img 
                         src={product.image} 
                         alt={product.title}
@@ -1906,13 +2402,38 @@ export default function AdminDashboard() {
                       <div style={{ position: 'absolute', top: '10px', right: '10px', background: '#0f172a', color: 'white', borderRadius: '8px', padding: '3px 8px', fontSize: '0.7rem' }}>
                         {new Date(product._fetchedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                       </div>
-                    </div>
+                    </a>
 
                     {/* Product Info */}
                     <div style={{ padding: '1rem' }}>
-                      <p style={{ fontWeight: 'bold', fontSize: '0.85rem', color: '#0f172a', marginBottom: '6px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                        {product.title}
-                      </p>
+                      <a 
+                        href={product.url || '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ textDecoration: 'none' }}
+                      >
+                        <p style={{ fontWeight: 'bold', fontSize: '0.85rem', color: '#0f172a', marginBottom: '6px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', cursor: 'pointer' }}>
+                          {product.title}
+                        </p>
+                      </a>
+
+                      {/* Tempo da oferta */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '0.7rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          🕐 {(() => {
+                            if (!product._fetchedAt) return 'agora';
+                            const diff = Math.floor((Date.now() - new Date(product._fetchedAt).getTime()) / 1000);
+                            if (diff < 60) return 'agora';
+                            if (diff < 3600) return `há ${Math.floor(diff / 60)} min`;
+                            if (diff < 86400) return `há ${Math.floor(diff / 3600)}h`;
+                            return `há ${Math.floor(diff / 86400)}d`;
+                          })()}
+                        </span>
+                        {product._fetchedAt && (Date.now() - new Date(product._fetchedAt).getTime()) < 300000 && (
+                          <span style={{ fontSize: '0.6rem', background: '#dcfce7', color: '#166534', padding: '1px 6px', borderRadius: '6px', fontWeight: 'bold' }}>⚡ RECENTE</span>
+                        )}
+                      </div>
+
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem' }}>
                         {product.originalPrice && product.originalPrice > product.price && (
                           <span style={{ fontSize: '0.75rem', color: '#94a3b8', textDecoration: 'line-through' }}>

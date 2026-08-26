@@ -1,7 +1,30 @@
 [
   {
+    "id": "ferramentas",
+    "label": "Ferramentas & Construção",
+    "amazonSlug": "hi",
+    "shopeeSlug": "ferramentas",
+    "mlCategoryId": "MLB1499"
+  },
+  {
     "id": "eletronicos",
     "label": "Eletrônicos",
-    "amazonSlug": "electronics"
+    "amazonSlug": "electronics",
+    "shopeeSlug": "eletronicos",
+    "mlCategoryId": "MLB1000"
+  },
+  {
+    "id": "eletrodomesticos",
+    "label": "Eletrodomésticos",
+    "amazonSlug": "appliances",
+    "shopeeSlug": "eletrodomesticos",
+    "mlCategoryId": "MLB5726"
+  },
+  {
+    "id": "informatica",
+    "label": "Informática",
+    "amazonSlug": "computers",
+    "shopeeSlug": "informatica",
+    "mlCategoryId": "MLB1648"
   }
 ]

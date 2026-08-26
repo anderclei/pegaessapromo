@@ -99,10 +99,12 @@ export default function ProductCarousel({ promotions }: ProductCarouselProps) {
           const originalPrice = p.product.originalPrice;
           
           return (
-            <Link 
-              href={p.id && p.id !== 'null' ? `/p/${p.id}` : (p.product.url || '#')} 
+            <a 
+              href={p.product.url || '#'} 
               key={`${p.id || p.product.url || 'promo'}-${idx}`} 
               className="carousel-item premium-card"
+              target="_blank"
+              rel="noopener noreferrer"
             >
               <div className="premium-card-image">
                 <img src={p.product.image} alt={p.product.title} />
@@ -120,9 +122,9 @@ export default function ProductCarousel({ promotions }: ProductCarouselProps) {
                 <div className="card-meta-row">
                    <div className="product-rating">
                       <span>★</span>
-                      <span>{p.product.rating.toFixed(1)}</span>
+                      <span>{(p.product.rating || 0).toFixed(1)}</span>
                    </div>
-                   <span className="product-sales">+{p.product.sales.toLocaleString('pt-BR')} vendidos</span>
+                   <span className="product-sales">+{(p.product.sales || 0).toLocaleString('pt-BR')} vendidos</span>
                 </div>
                 <h3 className="premium-card-title">{p.product.title}</h3>
                 <div className="card-price-container">
@@ -142,10 +144,10 @@ export default function ProductCarousel({ promotions }: ProductCarouselProps) {
                   </div>
                 </div>
                 <div className="btn btn-primary card-cta">
-                   Ver Detalhes
+                   Ir para Loja
                 </div>
               </div>
-            </Link>
+            </a>
           );
         })}
       </div>

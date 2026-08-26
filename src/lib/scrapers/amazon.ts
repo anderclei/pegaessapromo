@@ -51,14 +51,43 @@ const CATEGORY_MAP: Record<string, string> = {
   'todos': 'electronics'
 };
 
+// Prefixos ref= para cada tipo de lista (padrão que a Amazon aceita)
+const LIST_TYPE_REF: Record<string, string> = {
+  'bestsellers':        'zg_bs_nav',
+  'new-releases':       'zg_new_nav',
+  'movers-and-shakers': 'zg_mover_nav',
+  'most-wished-for':    'zg_wished_nav',
+  'lightning':          'zg_bs_nav',
+  'super':              'zg_bs_nav',
+};
+
+/**
+ * Monta a URL correta da Amazon BR.
+ * Formato: https://www.amazon.com.br/gp/bestsellers/{slug}/ref=zg_bs_nav_{slug}_0
+ */
+function buildAmazonUrl(category: string, type: string, amazonSlug?: string): string {
+  const slug = amazonSlug || CATEGORY_MAP[category] || 'electronics';
+  const refPrefix = LIST_TYPE_REF[type] || 'zg_bs_nav';
+  const listPath = type === 'new-releases' ? 'gp/new-releases'
+    : type === 'movers-and-shakers' ? 'gp/movers-and-shakers'
+    : type === 'most-wished-for' ? 'gp/most-wished-for'
+    : 'gp/bestsellers';
+
+  return `https://www.amazon.com.br/${listPath}/${slug}/ref=${refPrefix}_${slug}_0`;
+}
+
 export async function scrapeAmazon(category: string = 'todos', type: string = 'bestsellers', amazonSlug?: string): Promise<Product[]> {
+  // Ler amazonId das settings para montar URLs de afiliado
+  let amazonTag = '';
   try {
-    // Usuário solicitou restrição EXCLUSIVA para estes dois grupos na Amazon
-    const allowedUrls = [
-      'https://www.amazon.com.br/gp/bestsellers/electronics/ref=zg_bs_nav_electronics_0',
-      'https://www.amazon.com.br/gp/bestsellers/electronics/16243797011/ref=zg_bs_nav_electronics_1'
-    ];
-    const url = allowedUrls[Math.floor(Math.random() * allowedUrls.length)];
+    const { getSettings } = await import('../settings');
+    const s = await getSettings();
+    amazonTag = s?.amazonId || '';
+  } catch {}
+
+  try {
+    const url = buildAmazonUrl(category, type, amazonSlug);
+    console.log(`[Amazon Scraper] Buscando: ${url} (cat: ${category}, type: ${type})`);
     
     const { data } = await axios.get(url, {
       headers: {
@@ -143,18 +172,23 @@ export async function scrapeAmazon(category: string = 'todos', type: string = 'b
             originalPrice = undefined;
           }
           
+          // Validação: desconto > 70% é provavelmente erro de captura
+          if (originalPrice && originalPrice > price) {
+            const impliedDiscount = Math.round(((originalPrice - price) / originalPrice) * 100);
+            if (impliedDiscount > 70) {
+              originalPrice = undefined; // Descarta — provavelmente parcela capturada errado
+            }
+          }
+          
           // If we have originalPrice but no discount, calculate it
           if (!discount && originalPrice && originalPrice > price) {
             discount = Math.round(((originalPrice - price) / originalPrice) * 100);
           }
 
-          let rating = parseFloat(ratingText.split(' ')[0].replace(',', '.')) || 0;
-          let reviews = parseInt(reviewsText.replace(/[^\d]/g, '')) || 0;
+          const rating = parseFloat(ratingText.split(' ')[0].replace(',', '.')) || 0;
+          const reviews = parseInt(reviewsText.replace(/[^\d]/g, '')) || 0;
           
-          if (rating === 0) rating = parseFloat((4.0 + Math.random() * 0.9).toFixed(1));
-          if (reviews === 0) reviews = Math.floor(Math.random() * 800) + 20;
-
-          // Estimate sales based on 'compras no mês' text, else derive from reviews
+          // NUNCA inventar dados — usar apenas o que vem da página
           let sales = 0;
           const textLower = $el.text().toLowerCase();
           const salesMatch = textLower.match(/([\d\.]+)\+?\s*(mil\s*)?compras no/);
@@ -162,9 +196,6 @@ export async function scrapeAmazon(category: string = 'todos', type: string = 'b
             let num = parseFloat(salesMatch[1].replace(/\./g, '')) || 0;
             if (salesMatch[2] && salesMatch[2].includes('mil')) num *= 1000;
             sales = num;
-          }
-          if (sales === 0) {
-            sales = Math.floor(reviews * (2 + Math.random() * 3));
           }
 
           const productUrl = relativeLink?.startsWith('http') ? relativeLink : `https://www.amazon.com.br${relativeLink}`;
@@ -181,7 +212,7 @@ export async function scrapeAmazon(category: string = 'todos', type: string = 'b
 
             category: category,
             platform: 'amazon',
-            url: productUrl,
+            url: amazonTag ? `${productUrl}${productUrl.includes('?') ? '&' : '?'}tag=${amazonTag}` : productUrl,
             freeShipping: true,
             type: type as any,
           });
@@ -242,10 +273,10 @@ export async function scrapeAmazon(category: string = 'todos', type: string = 'b
           const ratingText = $el.find('.a-icon-star-small .a-icon-alt, .a-icon-star .a-icon-alt').text().trim();
           const reviewsText = $el.find('.a-size-small, .a-color-base').text().trim();
           
-          let rating = parseFloat(ratingText.split(' ')[0].replace(',', '.')) || parseFloat((4.0 + Math.random() * 0.9).toFixed(1));
-          let reviews = parseInt(reviewsText.replace(/[^\d]/g, '')) || Math.floor(Math.random() * 800) + 20;
+          const rating = parseFloat(ratingText.split(' ')[0].replace(',', '.')) || 0;
+          const reviews = parseInt(reviewsText.replace(/[^\d]/g, '')) || 0;
 
-          // Estimate sales based on 'compras no mês' text, else derive from reviews
+          // NUNCA inventar dados — usar apenas o que vem da página
           let sales = 0;
           const textLower = $el.text().toLowerCase();
           const salesMatch = textLower.match(/([\d\.]+)\+?\s*(mil\s*)?compras no/);
@@ -253,9 +284,6 @@ export async function scrapeAmazon(category: string = 'todos', type: string = 'b
             let num = parseFloat(salesMatch[1].replace(/\./g, '')) || 0;
             if (salesMatch[2] && salesMatch[2].includes('mil')) num *= 1000;
             sales = num;
-          }
-          if (sales === 0) {
-            sales = Math.floor(reviews * (2 + Math.random() * 3));
           }
 
           const productUrl = relativeLink?.startsWith('http') ? relativeLink : `https://www.amazon.com.br${relativeLink}`;
@@ -270,7 +298,7 @@ export async function scrapeAmazon(category: string = 'todos', type: string = 'b
             reviews: reviews,
             category: isLightning ? 'relampago' : 'ofertas',
             platform: 'amazon',
-            url: productUrl,
+            url: amazonTag ? `${productUrl}${productUrl.includes('?') ? '&' : '?'}tag=${amazonTag}` : productUrl,
             freeShipping: true,
             discount,
             type: type as any,
@@ -281,7 +309,7 @@ export async function scrapeAmazon(category: string = 'todos', type: string = 'b
     }
 
     // Aplicar filtro de focado exclusivo do usuário (ignorar produtos ruins que não vendem)
-    const defaultBadWords = ['cabo', 'adaptador', 'fone com fio', 'fone intra-auricular com fio', 'capinha', 'película', 'carregador de parede'];
+    const defaultBadWords = ['cabo', 'adaptador', 'fone com fio', 'fone intra-auricular com fio', 'capinha', 'película', 'carregador de parede', 'componente', 'circuito', 'conversor step', 'placa de rede', 'módulo'];
     let badWords = defaultBadWords;
     try {
       const { getSettings } = await import('../settings');
@@ -477,6 +505,16 @@ export async function hydrateAmazonPrice(product: Product): Promise<Product> {
       product.price = finalPrice;
     }
     
+    // Validação anti-invenção: Descartar originalPrice se parece ser parcela ou é absurdo
+    if (originalPriceValue > 0 && product.price > 0) {
+      const impliedDiscount = Math.round(((originalPriceValue - product.price) / originalPriceValue) * 100);
+      // Desconto > 70% é muito provavelmente um erro de captura (parcela, preço de outro vendedor, etc.)
+      if (impliedDiscount > 70 || impliedDiscount < 3) {
+        console.log(`[Amazon Hydrate] ⚠️ Descartando originalPrice ${originalPriceValue} (desconto implícito ${impliedDiscount}% é suspeito) para ${product.title?.substring(0, 40)}`);
+        originalPriceValue = 0;
+      }
+    }
+
     // Priority 1: Use detected original price only if it's higher than the current one and seems valid
     if (originalPriceValue && originalPriceValue > product.price + 1) {
       // Don't overwrite if the new original price is WORSE (lower) than what the grid already found!
@@ -488,16 +526,12 @@ export async function hydrateAmazonPrice(product: Product): Promise<Product> {
     // Priority 2: Use direct discount badge from this hydration (but don't invent DE price)
     else if (directDiscount > 0 && product.price > 0) {
       product.discount = directDiscount;
-      // Do not reconstruct originalPrice here as it can be inaccurate
+      // NUNCA reconstruir originalPrice a partir do desconto — só mostra "De:" com dados REAIS
     }
-    // Fallback: Preserve existing values if they are valid, else clear
+    // Fallback: Se não encontrou dados válidos, limpar dados inválidos
     else if (!product.originalPrice || product.originalPrice <= product.price) {
-       // Only wipe if current data is invalid. 
-       // If list scraper found a better discount, we keep it.
-       if (!product.discount || product.discount <= 0) {
-         product.originalPrice = undefined;
-         product.discount = 0;
-       }
+       product.originalPrice = undefined;
+       product.discount = 0;
     }
   } catch (e) {
     console.error(`Error hydrating amazon price for ${product.id}`, (e as Error).message);

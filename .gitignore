@@ -41,6 +41,19 @@ yarn-error.log*
 next-env.d.ts
 
 # whatsapp session data
+# scratch & local files
+scratch*
+scratch/
+*.html
+*.bat
+temp_config.json
+tas com a op.txt
+data/settings.json
+data/hot_products_*.json
+data/coupons.json
+
 .wwebjs_auth
 .wwebjs_cache/
 
+
+.vercel

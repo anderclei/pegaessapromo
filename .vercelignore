@@ -1,0 +1,13 @@
+﻿data/hot_products_*.json
+data/coupons.json
+scratch*/
+scratch-*.js
+dump*.js
+sync-ml.js
+rebuild-cache.js
+check-db.js
+test-*.js
+GERAR_TOKEN_ML.html
+INICIAR_SISTEMA.bat
+temp_config.json
+.next/

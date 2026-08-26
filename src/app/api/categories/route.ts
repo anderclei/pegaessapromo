@@ -39,13 +39,15 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   try {
-    const { id, label, amazonSlug } = await req.json();
+    const { id, label, amazonSlug, shopeeSlug, mlCategoryId } = await req.json();
     let categories = getCategories();
     const index = categories.findIndex((c: any) => c.id === id);
     if (index === -1) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     
     if (label !== undefined) categories[index].label = label;
     if (amazonSlug !== undefined) categories[index].amazonSlug = amazonSlug;
+    if (shopeeSlug !== undefined) categories[index].shopeeSlug = shopeeSlug;
+    if (mlCategoryId !== undefined) categories[index].mlCategoryId = mlCategoryId;
     
     saveCategories(categories);
     return NextResponse.json(categories[index]);

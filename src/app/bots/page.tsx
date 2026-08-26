@@ -2,52 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
-const GROUP_CATEGORIES = [
-  { value: 'todos', label: 'Todos', icon: '🌐' },
-  { value: 'tecnologia', label: 'Tecnologia', icon: '💻' },
-  { value: 'mulher', label: 'Mulher', icon: '👗' },
-  { value: 'casa', label: 'Casa', icon: '🏠' },
-  { value: 'eletronicos', label: 'Eletrônicos', icon: '📱' },
-  { value: 'foto_video', label: 'Foto e Vídeo', icon: '📸' },
-];
+import { BotStatus, WhatsAppGroup, GroupCategory, GROUP_CATEGORIES, InstagramPostData, PostLog } from '@/lib/bots/types';
 
-interface WhatsAppGroup {
-  id: string;
-  name: string;
-  participantsCount: number;
-  isAdmin: boolean;
-}
-
-interface GroupConfig {
-  id: string;
-  name: string;
-  participantsCount: number;
-  isAdmin: boolean;
+interface GroupConfig extends WhatsAppGroup {
   enabled: boolean;
-  categories: string[];
 }
-
-interface InstagramPostData {
-  id: string;
-  productTitle: string;
-  caption: string;
-  hashtags: string;
-  imageUrl: string;
-  affiliateLink: string;
-  createdAt: string;
-}
-
-interface PostLog {
-  id: string;
-  platform: 'whatsapp' | 'instagram';
-  productTitle: string;
-  groupName?: string;
-  status: 'success' | 'error';
-  message?: string;
-  timestamp: string;
-}
-
-type BotStatus = 'disconnected' | 'connecting' | 'qr_ready' | 'connected' | 'error';
 
 export default function BotsPage() {
   // WhatsApp state
@@ -127,7 +86,7 @@ export default function BotsPage() {
             return {
               ...g,
               enabled: existing?.enabled ?? false,
-              categories: existing?.categories ?? ['todos'],
+              categories: (existing?.categories ?? ['todos']) as GroupCategory[],
             };
           });
           return newConfigs;
@@ -219,7 +178,7 @@ export default function BotsPage() {
     );
   };
 
-  const handleGroupCategoryToggle = (groupId: string, category: string) => {
+  const handleGroupCategoryToggle = (groupId: string, category: GroupCategory) => {
     setGroupConfigs(prev =>
       prev.map(g => {
         if (g.id !== groupId) return g;
@@ -228,9 +187,9 @@ export default function BotsPage() {
           : [...g.categories, category];
         // If "todos" is selected, clear others; if something else is selected, remove "todos"
         if (category === 'todos') {
-          return { ...g, categories: ['todos'] };
+          return { ...g, categories: ['todos'] as GroupCategory[] };
         } else {
-          return { ...g, categories: cats.filter(c => c !== 'todos') };
+          return { ...g, categories: cats.filter(c => c !== 'todos') as GroupCategory[] };
         }
       })
     );

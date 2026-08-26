@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Product, Promotion } from '@/lib/types';
+import { Product, Promotion, Coupon } from '@/lib/types';
 import ProductCarousel from '@/components/ProductCarousel';
 import './home.css';
 
@@ -11,6 +11,7 @@ const getStoreLogo = (platform: string) => {
     case 'amazon': return '/logos/amazon.jpg';
     case 'shopee': return '/logos/shopee.jpg';
     case 'mercadolivre': return '/logos/mercadolivre.png';
+    case 'magalu': return '/logos/magalu.jpg';
     default: return '/logos/amazon.jpg';
   }
 };
@@ -23,10 +24,14 @@ const extractAsin = (url: string) => {
 
 const normalizeUrl = (url: string) => {
   if (!url) return '';
-  const asin = extractAsin(url);
-  if (asin) return `amazon:${asin}`;
   try {
     const u = new URL(url);
+    // Para URLs de busca ou específicas que precisam de query params, mantemos a query
+    if (u.pathname.includes('/search') || u.pathname.includes('/busca')) {
+      return u.origin + u.pathname + u.search;
+    }
+    const asin = extractAsin(url);
+    if (asin) return `amazon:${asin}`;
     return u.origin + u.pathname;
   } catch {
     return url;
@@ -52,7 +57,22 @@ const getRealDiscount = (p: Product): number => {
 
 const ProductCardPublic = ({ product, id }: { product: Product; id?: string | null }) => {
   const storeLogo = getStoreLogo(product.platform);
-  const href = id && id !== 'null' ? `/p/${id}` : (product.url || '#'); 
+  const extractPlatformId = (url?: string) => {
+    if (!url) return null;
+    // Amazon ASIN
+    const amazonMatch = url.match(/\/(dp|gp\/product|product)\/([A-Z0-9]{10})/i);
+    if (amazonMatch) return amazonMatch[2];
+    
+    // Mercado Livre MLB
+    const mlMatch = url.match(/\/(MLB-?\d+)/i);
+    if (mlMatch) return mlMatch[1].replace('-', '');
+    
+    return null;
+  };
+
+  const extractedId = extractPlatformId(product.url);
+  const finalId = id && id !== 'null' ? id : extractedId;
+  const href = product.url || '#'; 
   
   // Only show real discount/original price from scraper data
   const discount = getRealDiscount(product);
@@ -61,7 +81,7 @@ const ProductCardPublic = ({ product, id }: { product: Product; id?: string | nu
     : null; // null = don't show "De:" row
 
   return (
-    <Link href={href} className="premium-card">
+    <a href={href} target="_blank" className="premium-card" rel="noopener noreferrer">
       <div className="premium-card-image">
         <img src={product.image} alt={product.title} />
         {discount > 0 && <div className="discount-badge">-{discount}% OFF</div>}
@@ -70,13 +90,13 @@ const ProductCardPublic = ({ product, id }: { product: Product; id?: string | nu
         </div>
       </div>
       <div className="premium-card-body">
-        <div className="card-meta-row">
-           <div className="product-rating">
-              <span>★</span>
-              <span>{product.rating.toFixed(1)}</span>
-           </div>
-           <span className="product-sales">+{product.sales.toLocaleString('pt-BR')} vendidos</span>
-        </div>
+         <div className="card-meta-row">
+            <div className="product-rating">
+               <span>★</span>
+               <span>{(product.rating || 0).toFixed(1)}</span>
+            </div>
+            <span className="product-sales">+{(product.sales || 0).toLocaleString('pt-BR')} vendidos</span>
+         </div>
         <h3 className="premium-card-title">{product.title}</h3>
         <div className="card-price-container">
            {originalPrice && (
@@ -93,18 +113,25 @@ const ProductCardPublic = ({ product, id }: { product: Product; id?: string | nu
            </div>
         </div>
         <div className="btn btn-primary card-cta">
-           Ver Detalhes
+           Ir para Loja
         </div>
       </div>
-    </Link>
+    </a>
   );
 };
+
+const DEFAULT_CATEGORIES = [
+  { id: 'ferramentas', label: 'Ferramentas & Construção' },
+  { id: 'eletronicos', label: 'Eletrônicos' },
+  { id: 'eletrodomesticos', label: 'Eletrodomésticos' },
+  { id: 'informatica', label: 'Informática' },
+];
 
 export default function Home() {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [categories, setCategories] = useState<{ id: string, label: string }[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [categories, setCategories] = useState<{ id: string, label: string }[]>(DEFAULT_CATEGORIES);
+  const [selectedCategory, setSelectedCategory] = useState<string>('ferramentas');
 
   useEffect(() => {
     async function fetchData() {
@@ -126,24 +153,85 @@ export default function Home() {
         if (!activeCategory) return;
 
         setLoading(true);
-        const [promosRes, amazonRes] = await Promise.all([
+        const [promosRes, amazonRes, mlRes, shopeeRes, magaluRes] = await Promise.all([
           fetch('/api/promotions'),
-          fetch(`/api/amazon?category=${activeCategory}`)
+          fetch(`/api/amazon?category=${activeCategory}`),
+          fetch(`/api/mercadolivre?category=${activeCategory}`),
+          fetch(`/api/shopee?category=${activeCategory}`),
+          fetch(`/api/magalu?category=${activeCategory}`),
         ]);
         
         const promosData = await promosRes.json();
         const amazonData = await amazonRes.json();
+        const mlData = await mlRes.json();
+        const shopeeData = await shopeeRes.json();
+        const magaluData = await magaluRes.json();
         
-        // Convert amazon hot products to a format compatible with ProductCardPublic
         const now = new Date();
-        const amazonHotPromos = (amazonData.products || []).map((p: any, index: number) => ({
+        const mapToPromo = (list: any[], source: string) => (list || []).map((p: any, index: number) => ({
           id: p.id || null,
-          product: p,
+          product: { 
+            ...p, 
+            platform: p.platform || source,
+            // Mantém listType do scraper (Amazon define corretamente), mas NÃO força 'bestsellers' como default
+            listType: p.listType || (p.type === 'lightning' ? 'lightning' : undefined),
+            // NUNCA inventar dados — usar exatamente o que vem da API
+            rating: p.rating || 0,
+            sales: p.sales || 0,
+          },
           isHot: true,
           createdAt: p.createdAt || new Date(now.getTime() - index * 1000).toISOString()
         }));
 
-        setPromotions([...promosData, ...amazonHotPromos]);
+        const amazonHot = mapToPromo(amazonData.products, 'amazon');
+
+        // Distribui ML entre TODAS as seções (round-robin forçado)
+        const mlSections = ['bestsellers', 'movers-and-shakers', 'most-wished-for', 'new-releases'];
+        const mlHot = mapToPromo(mlData.products, 'mercadolivre').map((p, i) => ({
+          ...p,
+          product: {
+            ...p.product,
+            listType: mlSections[i % mlSections.length]
+          }
+        }));
+
+        // Distribui Shopee entre TODAS as seções (round-robin forçado, offset diferente)
+        const shopeeSections = ['movers-and-shakers', 'bestsellers', 'most-wished-for', 'new-releases'];
+        const shopeeHot = mapToPromo(shopeeData.products, 'shopee').map((p, i) => ({
+          ...p,
+          product: {
+            ...p.product,
+            listType: shopeeSections[i % shopeeSections.length]
+          }
+        }));
+
+        // Distribui Magalu entre TODAS as seções (round-robin forçado, offset 2)
+        const magaluSections = ['most-wished-for', 'new-releases', 'bestsellers', 'movers-and-shakers'];
+        const magaluHot = mapToPromo(magaluData.products, 'magalu').map((p, i) => ({
+          ...p,
+          product: {
+            ...p.product,
+            listType: magaluSections[i % magaluSections.length]
+          }
+        }));
+
+        console.log(`[Frontend] Amazon: ${amazonHot.length}, ML: ${mlHot.length}, Shopee: ${shopeeHot.length}, Magalu: ${magaluHot.length}`);
+
+        // Algoritmo de Mistura Equilibrada (intercala todas as fontes)
+        const balanced: any[] = [];
+        const maxLen = Math.max(amazonHot.length, mlHot.length, shopeeHot.length, magaluHot.length);
+        
+        for (let i = 0; i < maxLen; i++) {
+          if (magaluHot[i]) balanced.push(magaluHot[i]);
+          if (shopeeHot[i]) balanced.push(shopeeHot[i]);
+          if (mlHot[i]) balanced.push(mlHot[i]);
+          if (amazonHot[i]) balanced.push(amazonHot[i]);
+        }
+
+        // Promos manuais por último para não dominar as seções automáticas
+        const combined = [...balanced, ...promosData];
+
+        setPromotions(combined);
       } catch (error) {
         console.error('Failed to fetch data:', error);
       } finally {
@@ -157,12 +245,11 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [selectedCategory]);
 
-  const amazonPromos = promotions
-    .filter(p => p.product.platform === 'amazon')
+  const allPromos = promotions
     .filter(p => p.product.price > 0)
     .filter(p => {
       // Allow the selected category AND the global deals so the Deals sections still render
-      return p.product.category === selectedCategory || ['ofertas', 'relampago', 'ofertas_gerais'].includes(p.product.category);
+      return p.product.category === selectedCategory || ['ofertas', 'relampago', 'ofertas_gerais', 'todos'].includes(p.product.category);
     });
 
   // Logic to fill sections to required counts ensures UNIQUENESS
@@ -194,19 +281,19 @@ export default function Home() {
 
   // Sections Filtering
   const getListDeals = (listType: string, limit: number) => {
-    const deals = amazonPromos.filter(p => p.product.listType === listType || (listType === 'bestsellers' && !p.product.listType));
+    const deals = allPromos.filter(p => p.product.listType === listType || (listType === 'bestsellers' && !p.product.listType));
     return getUniqueDeals(deals, limit);
   };
 
-  const lightningDeals = getUniqueDeals(amazonPromos.filter(p => p.product.category === 'relampago' || p.product.type === 'lightning'), 4);
+  const lightningDeals = getUniqueDeals(allPromos.filter(p => p.product.category === 'relampago' || p.product.type === 'lightning'), 4);
   const top10 = getListDeals('bestsellers', 15);
   const newReleases = getListDeals('new-releases', 4);
   const moversAndShakers = getListDeals('movers-and-shakers', 8);
   const mostWishedFor = getListDeals('most-wished-for', 8);
 
   const potentialSuper = [
-    ...amazonPromos.filter(p => p.product.category === 'ofertas' || p.product.type === 'super'),
-    ...amazonPromos.filter(p => (p.product.discount || 0) >= 20),
+    ...allPromos.filter(p => p.product.category === 'ofertas' || p.product.type === 'super'),
+    ...allPromos.filter(p => (p.product.discount || 0) >= 20),
   ];
   
   const superDealsRaw = getUniqueDeals(potentialSuper, 8);
@@ -216,9 +303,24 @@ export default function Home() {
     <div className="home-container">
       <div className="home-content">
         
-        {/* Removido botões de categoria por enquanto, focando apenas em Eletrônicos */}
-
-        
+        {/* Barra de Seleção de Categorias */}
+        {categories.length > 0 && (
+          <div className="category-tabs">
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                className={`category-tab ${selectedCategory === cat.id ? 'active' : ''}`}
+                onClick={() => setSelectedCategory(cat.id)}
+              >
+                {cat.id === 'ferramentas' && '🛠️ '}
+                {cat.id === 'eletronicos' && '📱 '}
+                {cat.id === 'eletrodomesticos' && '🍳 '}
+                {cat.id === 'informatica' && '💻 '}
+                {cat.label}
+              </button>
+            ))}
+          </div>
+        )}
         {moversAndShakers.length > 0 && (
           <section className="section-standard">
             <div className="section-header-compact">
@@ -261,7 +363,7 @@ export default function Home() {
           <section className="section-standard">
             <div className="section-header-compact">
               <span className="section-icon">🆕</span>
-              <h2>Novidades na Amazon</h2>
+              <h2>Novidades de Hoje</h2>
             </div>
             <div className="products-grid-mini">
               {newReleases.map((promo, idx) => (

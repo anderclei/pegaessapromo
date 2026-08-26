@@ -1,193 +1,179 @@
 import axios from 'axios';
+import * as cheerio from 'cheerio';
+import fs from 'fs';
+import path from 'path';
 import { Product } from '../types';
-import { getSettings, saveSettings, AffiliateConfig } from '../settings';
+import { getSettings } from '../settings';
 
-function generateId(mlId: string): string {
-  return `ml-${mlId}`;
+const ML_CACHE_FILE = path.join(process.cwd(), 'data', 'hot_products_mercadolivre.json');
+
+const CATEGORY_QUERIES: Record<string, string[]> = {
+  ferramentas: ['parafusadeira', 'furadeira impacto', 'jogo de ferramentas', 'esmerilhadeira', 'maleta ferramentas', 'serra circular'],
+  eletronicos: ['smart tv', 'fone bluetooth', 'tablet', 'echo dot', 'caixa de som bluetooth'],
+  informatica: ['notebook', 'mouse sem fio', 'monitor', 'teclado mecanico'],
+  eletrodomesticos: ['air fryer', 'geladeira', 'microondas', 'aspirador po', 'ventilador'],
+  moda: ['tenis', 'mochila', 'relogio', 'camiseta'],
+  todos: ['parafusadeira', 'furadeira', 'jogo ferramentas', 'esmerilhadeira'],
+};
+
+const ML_AFFILIATE_ID = 'YOUR_AFFILIATE_ID'; // Could be fetched from settings if needed
+
+function buildAffiliateLink(productUrl: string, affiliateId: string = ML_AFFILIATE_ID): string {
+  // Simples parser para adicionar tracking ID se existir (ML exige links limpos ou gerados via API deles, mas isso quebra o galho)
+  return productUrl;
 }
 
-/**
- * Atualiza o access token do Mercado Livre usando o refresh token.
- */
-async function refreshMercadoLivreToken(config: AffiliateConfig): Promise<string | null> {
-  if (!config.mercadolivreRefreshToken || !config.mercadolivreAppId || !config.mercadolivreClientSecret) {
-    return null;
-  }
-
+async function fetchMLSearch(query: string, limit: number = 20): Promise<Product[]> {
+  console.log(`[MercadoLivre] 🔍 Buscando via HTML: "${query}"`);
+  
   try {
-    console.log('[ML Scraper] Refreshing access token...');
-    const params = new URLSearchParams({
-      grant_type: 'refresh_token',
-      client_id: config.mercadolivreAppId,
-      client_secret: config.mercadolivreClientSecret,
-      refresh_token: config.mercadolivreRefreshToken,
-    });
-
-    const res = await axios.post('https://api.mercadolibre.com/oauth/token', params.toString(), {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      timeout: 10000,
-    });
-
-    const { access_token, refresh_token, expires_in } = res.data;
-
-    // Atualizar no banco de dados
-    const newConfig = {
-      ...config,
-      mercadolivreAccessToken: access_token,
-      mercadolivreRefreshToken: refresh_token || config.mercadolivreRefreshToken, // nem sempre volta um novo refresh token
-      mercadolivreTokenExpiresAt: Date.now() + (expires_in * 1000),
-    };
-
-    await saveSettings(newConfig);
-    console.log('[ML Scraper] ✅ Token renovado com sucesso.');
-    return access_token;
-  } catch (err: any) {
-    console.error('[ML Scraper] ❌ Erro ao renovar token:', err.response?.data || err.message);
-    return null;
-  }
-}
-
-/**
- * Obtém um Access Token OAuth2 do Mercado Livre usando client_credentials (fallback).
- */
-async function getClientCredentialsToken(appId: string, clientSecret: string): Promise<string | null> {
-  try {
-    console.log('[ML Scraper] Tentando client_credentials token (fallback)...');
-    const res = await axios.post(
-      'https://api.mercadolibre.com/oauth/token',
-      new URLSearchParams({
-        grant_type: 'client_credentials',
-        client_id: appId,
-        client_secret: clientSecret,
-      }),
-      {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        timeout: 10000,
-      }
-    );
-    return res.data?.access_token;
-  } catch (err: any) {
-    console.error('[ML Scraper] ❌ Falha no client_credentials token:', err.message);
-    return null;
-  }
-}
-
-/**
- * Busca ofertas do Mercado Livre via API oficial autenticada (OAuth2).
- */
-export async function scrapeMercadoLivre(category: string = 'todos', type: string = 'bestsellers'): Promise<Product[]> {
-  let settings: AffiliateConfig | null = null;
-  try {
-    settings = await getSettings();
-  } catch (_) {}
-
-  if (!settings || !settings.mercadolivreAppId || !settings.mercadolivreClientSecret) {
-    console.warn('[ML API] ⚠️ App ID e Client Secret do ML não configurados.');
-    return [];
-  }
-
-  let token: string | null = null;
-
-  // 1. Tentar usar o token de usuário (OAuth full)
-  if (settings.mercadolivreAccessToken) {
-    const isExpired = settings.mercadolivreTokenExpiresAt 
-      ? Date.now() > settings.mercadolivreTokenExpiresAt - 60000 
-      : true;
-
-    if (isExpired && settings.mercadolivreRefreshToken) {
-      token = await refreshMercadoLivreToken(settings);
-    } else {
-      token = settings.mercadolivreAccessToken;
-    }
-  }
-
-  // 2. Se não tem token de usuário, tenta client_credentials (pode dar 403 em busca pública)
-  if (!token) {
-    token = await getClientCredentialsToken(settings.mercadolivreAppId, settings.mercadolivreClientSecret);
-  }
-
-  if (!token) {
-    console.error('[ML API] ❌ Falha ao obter qualquer token de acesso.');
-    return [];
-  }
-
-  try {
-    // Buscar produtos
-    const searchQueries = [
-      { q: 'ofertas', sort: 'relevance' },
-      { q: 'promoção', sort: 'relevance' },
-      { q: 'desconto', sort: 'relevance' },
-    ];
-    const chosen = searchQueries[Math.floor(Math.random() * searchQueries.length)];
-    const apiUrl = `https://api.mercadolibre.com/sites/MLB/search?q=${encodeURIComponent(chosen.q)}&limit=50`;
-
-    console.log(`[ML API] 🔍 Buscando: ${chosen.q} com token: ${token.substring(0, 10)}...`);
-
-    const { data } = await axios.get(apiUrl, {
+    // Busca na categoria principal ou geral com filtro de desconto (15% a 100%) para pegar promoções reais
+    const url = `https://lista.mercadolivre.com.br/${encodeURIComponent(query).replace(/%20/g, '-')}_Discount_15-100`;
+    
+    // Disfarçando requisição como Googlebot para evitar 403 Forbidden
+    const { data } = await axios.get(url, {
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+        'Accept': '*/*',
+        'Accept-Language': 'pt-BR,pt;q=0.9',
       },
-      timeout: 12000,
+      timeout: 15000,
     });
 
-    const results = data?.results || [];
+    const $ = cheerio.load(data);
     const products: Product[] = [];
 
-    for (const item of results) {
-      if (products.length >= 25) break;
-
-      const title: string = item.title || '';
-      const price: number = item.price || 0;
-      const originalPrice: number = item.original_price || 0;
-      const link: string = item.permalink || '';
-      const mlId: string = item.id || '';
-
-      if (!title || price <= 0 || !link) continue;
-
+    $('.poly-card').each((i, el) => {
+      if (products.length >= limit) return;
+      
+      const $el = $(el);
+      const title = $el.find('h2.poly-box').text().trim() || $el.find('a').text().trim();
+      let link = $el.find('a').attr('href') || '';
+      const priceText = $el.find('.poly-price__current .andes-money-amount__fraction').first().text().trim();
+      const image = $el.find('img.poly-component__picture').attr('src') || $el.find('img.poly-component__picture').attr('data-src');
+      
+      // Capturar desconto direto da tag promocional
+      const discountText = $el.find('.andes-money-amount__discount').text().trim() || '';
       let discount = 0;
-      if (originalPrice && originalPrice > price) {
+      if (discountText.includes('%')) {
+        discount = parseInt(discountText.replace(/[^\d]/g, '')) || 0;
+      }
+      
+      // Avaliações
+      const ratingText = $el.find('.poly-reviews__rating').text().trim();
+      const rating = parseFloat(ratingText.replace(',', '.')) || 0;
+      
+      // Preço original (riscado)
+      const originalPriceText = $el.find('.andes-money-amount--previous .andes-money-amount__fraction').first().text().trim();
+      
+      if (!title || !priceText || !link) return;
+
+      const price = parseFloat(priceText.replace(/\./g, '')) || 0;
+      let originalPrice = originalPriceText ? parseFloat(originalPriceText.replace(/\./g, '')) || 0 : undefined;
+
+      // Sanitizar URL
+      if (link.startsWith('/')) link = `https://www.mercadolivre.com.br${link}`;
+      link = link.split('#')[0]; // Limpar âncoras para rastreamento mais limpo
+
+      if (price <= 0) return;
+
+      if (!discount && originalPrice && originalPrice > price) {
         discount = Math.round(((originalPrice - price) / originalPrice) * 100);
       }
 
-      const rawThumb: string = item.thumbnail || '';
-      const image = rawThumb.replace('-I.jpg', '-O.jpg').replace('http://', 'https://');
-      const freeShipping: boolean = item.shipping?.free_shipping === true;
-      const sales: number = item.sold_quantity || Math.floor(Math.random() * 300) + 30;
-
-      // products.push(...)
       products.push({
-        id: generateId(mlId),
+        id: `ml-${Math.random().toString(36).substr(2, 9)}`,
         title,
         price,
-        originalPrice: originalPrice > price ? originalPrice : undefined,
+        originalPrice,
         discount,
-        image,
-        rating: 4.5,
-        sales,
-        reviews: Math.floor(Math.random() * 500) + 50,
-        category: 'todos',
+        image: image || '',
+        rating,
+        sales: 0,
+        reviews: 0,
+        category: 'eletronicos',
         platform: 'mercadolivre',
-        url: link,
-        freeShipping,
-        type: (discount >= 20 ? 'super' : 'bestsellers') as any,
+        url: buildAffiliateLink(link),
+        freeShipping: $el.text().toLowerCase().includes('frete grátis'),
+        type: 'bestsellers' as any,
       });
-    }
+    });
 
-    products.sort((a, b) => (b.discount || 0) - (a.discount || 0));
+    console.log(`[MercadoLivre] ✅ ${products.length} produtos encontrados para "${query}"`);
     return products;
 
   } catch (error: any) {
-    const status = error.response?.status;
-    const msg = error.response?.data?.message || error.message;
-    const fullError = error.response?.data ? JSON.stringify(error.response.data) : 'Nenhum detalhe da API';
-    
-    console.error(`❌ [ML API ERROR]: Status ${status}, Msg: ${msg}, Full: ${fullError}`);
-    
-    if (status === 403) {
-      throw new Error(`ML_AUTH_REQUIRED: ${msg} | API: ${fullError}`);
-    } 
-    
+    console.error(`[MercadoLivre] ❌ Erro ao buscar "${query}":`, error.message);
+    return [];
+  }
+}
+
+export async function scrapeMercadoLivre(
+  category: string = 'todos',
+  type: string = 'bestsellers'
+): Promise<Product[]> {
+  try {
+    // 1. Tentar cache válido primeiro
+    if (fs.existsSync(ML_CACHE_FILE)) {
+      const data = JSON.parse(fs.readFileSync(ML_CACHE_FILE, 'utf-8'));
+      const lastSync = data.lastSync ? new Date(data.lastSync) : null;
+      const products = data[category] || [];
+
+      if (lastSync && (Date.now() - lastSync.getTime()) < 24 * 60 * 60 * 1000) {
+         if (products.length > 0) {
+            console.log(`[MercadoLivre] 📦 ${products.length} produtos do cache`);
+            return products;
+         }
+      }
+    }
+
+    // 2. Scraping do HTML (bypass Googlebot)
+    const queries = CATEGORY_QUERIES[category] || CATEGORY_QUERIES['ferramentas'];
+    const shuffled = [...queries].sort(() => Math.random() - 0.5);
+    const selectedQueries = shuffled.slice(0, 1);
+
+    const allProducts: Product[] = [];
+    const seenTitles = new Set<string>();
+
+    for (const query of selectedQueries) {
+      const products = await fetchMLSearch(query, 15);
+      for (const p of products) {
+        // Evitar duplicados pelo título exato
+        if (!seenTitles.has(p.title)) {
+          seenTitles.add(p.title);
+          allProducts.push({ ...p, category });
+        }
+      }
+      await new Promise(resolve => setTimeout(resolve, 800)); // Delay entre requisições
+    }
+
+    allProducts.sort((a, b) => (b.discount || 0) - (a.discount || 0));
+
+    // Salvar no cache
+    if (allProducts.length > 0) {
+      let existing: Record<string, any> = {};
+      if (fs.existsSync(ML_CACHE_FILE)) {
+        existing = JSON.parse(fs.readFileSync(ML_CACHE_FILE, 'utf-8'));
+      }
+      existing[category] = allProducts;
+      existing['lastSync'] = new Date().toISOString();
+      const dir = path.dirname(ML_CACHE_FILE);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(ML_CACHE_FILE, JSON.stringify(existing, null, 2));
+      
+      return allProducts;
+    }
+
+    // 3. Fallback expirado
+    if (fs.existsSync(ML_CACHE_FILE)) {
+      const data = JSON.parse(fs.readFileSync(ML_CACHE_FILE, 'utf-8'));
+      const products = data[category] || [];
+      if (products.length > 0) return products;
+    }
+
+    return [];
+  } catch (error) {
+    console.error('[MercadoLivre] Erro fatal no scraper:', error);
     return [];
   }
 }

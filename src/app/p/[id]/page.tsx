@@ -21,10 +21,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   
   return {
     title: `🔥 OFERTA: ${product.title}`,
-    description: `Aproveite esta oferta incrível por apenas ${product.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}!`,
+    description: `Aproveite esta oferta incrível por apenas ${(product.price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}!`,
     openGraph: {
       title: product.title,
-      description: `📦 +${product.sales.toLocaleString('pt-BR')} vendidos | ⭐ ${product.rating.toFixed(1)}`,
+      description: `📦 +${(product.sales || 0).toLocaleString('pt-BR')} vendidos | ⭐ ${(product.rating || 0).toFixed(1)}`,
       images: [{ url: product.image }],
     },
     twitter: {
@@ -76,9 +76,9 @@ const ProductCardSm = ({ promotion }: { promotion: Promotion }) => {
         <div className="card-meta-top">
            <div className="product-rating">
               <span>★</span>
-              <span>{product.rating.toFixed(1)}</span>
+              <span>{(product.rating || 0).toFixed(1)}</span>
            </div>
-           <span className="product-sales">+{product.sales} vendidos</span>
+           <span className="product-sales">+{(product.sales || 0)} vendidos</span>
         </div>
         <h3 className="card-title">{product.title}</h3>
         <div className="card-price-row">

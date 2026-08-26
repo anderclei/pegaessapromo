@@ -1,6 +1,6 @@
 import { Client, LocalAuth, MessageMedia } from 'whatsapp-web.js';
 import * as QRCode from 'qrcode';
-import { BotStatus, WhatsAppGroup, PostLog } from './types';
+import { BotStatus, WhatsAppGroup, PostLog, GroupCategory } from './types';
 import { Product } from '../types';
 import { generateAllCopies, buildAffiliateLink } from '../copywriter';
 import { savePromotion } from '../promotions';
@@ -146,7 +146,7 @@ class WhatsAppBot {
             name: chat.name,
             participantsCount: groupChat.participants?.length || 0,
             isAdmin: me?.isAdmin || false,
-            categories: ['todos'],
+            categories: ['todos'] as GroupCategory[],
           };
         })
       );
