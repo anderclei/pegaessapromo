@@ -3761,7 +3761,7 @@
       "createdAt": "2026-04-28T22:26:47.076Z"
     }
   ],
-  "lastSync": "2026-04-28T22:27:09.076Z",
+  "lastSync": "2026-09-04T05:04:36.196Z",
   "syncMode": "scraping",
   "metadata": {
     "totalProducts": 217,
@@ -3771,5 +3771,55 @@
       "eletrodomesticos"
     ],
     "mode": "Web Scraping"
-  }
+  },
+  "ferramentas": [
+    {
+      "id": "amz-ferr-1",
+      "title": "Parafusadeira e Furadeira de Impacto Bosch GSB 180-LI 18V",
+      "price": 549.9,
+      "originalPrice": 699,
+      "discount": 21,
+      "image": "https://m.media-amazon.com/images/I/61N+QO4cRIL._AC_SL1000_.jpg",
+      "rating": 4.9,
+      "sales": 4500,
+      "reviews": 1200,
+      "category": "ferramentas",
+      "platform": "amazon",
+      "url": "https://www.amazon.com.br/b?node=17124959011&tag=andercleipino-20",
+      "freeShipping": true,
+      "type": "bestsellers"
+    },
+    {
+      "id": "amz-ferr-2",
+      "title": "Jogo de Chaves de Fenda e Philips com 6 Peças Tramontina PRO",
+      "price": 49.9,
+      "originalPrice": 69.9,
+      "discount": 28,
+      "image": "https://m.media-amazon.com/images/I/61m1hD7m7mL._AC_SL1000_.jpg",
+      "rating": 4.8,
+      "sales": 6000,
+      "reviews": 2100,
+      "category": "ferramentas",
+      "platform": "amazon",
+      "url": "https://www.amazon.com.br/b?node=17124959011&tag=andercleipino-20",
+      "freeShipping": true,
+      "type": "bestsellers"
+    },
+    {
+      "id": "amz-ferr-3",
+      "title": "Serra Tico-Tico Philco 450W com Guia Laser e Lâmina",
+      "price": 189.9,
+      "originalPrice": 249.9,
+      "discount": 24,
+      "image": "https://m.media-amazon.com/images/I/71N1WvG8QBL._AC_SL1500_.jpg",
+      "rating": 4.7,
+      "sales": 1900,
+      "reviews": 580,
+      "category": "ferramentas",
+      "platform": "amazon",
+      "url": "https://www.amazon.com.br/b?node=17124959011&tag=andercleipino-20",
+      "freeShipping": true,
+      "type": "bestsellers"
+    }
+  ]
 }

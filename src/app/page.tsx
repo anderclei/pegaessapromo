@@ -191,6 +191,7 @@ function HomeContent() {
           id: p.id || null,
           product: { 
             ...p, 
+            category: activeCategory, // Garante que o produto pertence à categoria buscada
             platform: p.platform || source,
             // Mantém listType do scraper (Amazon define corretamente), mas NÃO força 'bestsellers' como default
             listType: p.listType || (p.type === 'lightning' ? 'lightning' : undefined),
@@ -267,8 +268,10 @@ function HomeContent() {
   const allPromos = promotions
     .filter(p => p.product.price > 0)
     .filter(p => {
-      // Allow the selected category AND the global deals so the Deals sections still render
-      return p.product.category === selectedCategory || ['ofertas', 'relampago', 'ofertas_gerais', 'todos'].includes(p.product.category);
+      if (selectedCategory && selectedCategory !== 'todos') {
+        return p.product.category === selectedCategory;
+      }
+      return true;
     });
 
   // Logic to fill sections to required counts ensures UNIQUENESS

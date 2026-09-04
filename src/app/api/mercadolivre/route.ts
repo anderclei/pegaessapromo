@@ -18,11 +18,11 @@ export async function GET(request: Request) {
     if (fs.existsSync(ML_FILE) && !forceApi) {
       const content = fs.readFileSync(ML_FILE, 'utf-8');
       const mlData = JSON.parse(content);
-      const products = mlData[category] || mlData['todos'] || [];
+      const products = mlData[category] || (category === 'todos' ? mlData['todos'] : undefined) || [];
 
       if (products.length > 0) {
-        console.log(`[ML API] ✅ ${products.length} produtos do cache local`);
-        return NextResponse.json({ products, source: 'cache_file' });
+        console.log(`[ML API] ✅ ${products.length} produtos do cache local para "${category}"`);
+        return NextResponse.json({ products: products.map((p: any) => ({ ...p, category })), source: 'cache_file' });
       }
     }
 

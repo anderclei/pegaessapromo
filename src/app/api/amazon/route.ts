@@ -66,17 +66,9 @@ export async function GET(request: Request) {
         // 3. Shuffle for dynamic feel
         products = balancedProducts.sort(() => Math.random() - 0.5);
       } else {
-        // Get specific category plus matching global deals
-        // Only return if category is active
-        if (activeCatIds.includes(category)) {
-          products = (hotData[category] || []);
-        }
-        
-        // Also add global deals that might be relevant or just fill the list
-        const globalDeals = hotData['ofertas_gerais'] || [];
-        // If we have few products, supplement with global deals
-        if (products.length < 20) {
-          products = [...products, ...globalDeals];
+        // Get specific category
+        if (activeCatIds.includes(category) && Array.isArray(hotData[category]) && hotData[category].length > 0) {
+          products = hotData[category].map((p: any) => ({ ...p, category }));
         }
       }
 

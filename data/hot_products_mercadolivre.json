@@ -716,5 +716,71 @@
       "type": "bestsellers"
     }
   ],
-  "lastSync": "2026-04-28T23:57:52.369Z"
+  "lastSync": "2026-09-04T05:04:36.193Z",
+  "ferramentas": [
+    {
+      "id": "ml-ferr-1",
+      "title": "Parafusadeira E Furadeira De Impacto Bateria 12v Bivolt",
+      "price": 139.9,
+      "originalPrice": 199.9,
+      "discount": 30,
+      "image": "https://http2.mlstatic.com/D_NQ_NP_2X_789531-MLB75143383042_032024-F.webp",
+      "rating": 4.8,
+      "sales": 1200,
+      "reviews": 450,
+      "category": "ferramentas",
+      "platform": "mercadolivre",
+      "url": "https://lista.mercadolivre.com.br/ferramentas/parafusadeira",
+      "freeShipping": true,
+      "type": "bestsellers"
+    },
+    {
+      "id": "ml-ferr-2",
+      "title": "Jogo De Ferramentas Com Maleta 129 Peças Sparta",
+      "price": 98.9,
+      "originalPrice": 149,
+      "discount": 33,
+      "image": "https://http2.mlstatic.com/D_NQ_NP_2X_616867-MLB72791776991_112023-F.webp",
+      "rating": 4.7,
+      "sales": 3500,
+      "reviews": 980,
+      "category": "ferramentas",
+      "platform": "mercadolivre",
+      "url": "https://lista.mercadolivre.com.br/ferramentas/jogo-ferramentas",
+      "freeShipping": true,
+      "type": "bestsellers"
+    },
+    {
+      "id": "ml-ferr-3",
+      "title": "Esmerilhadeira Angular 4.1/2 820w Black+Decker G720",
+      "price": 219,
+      "originalPrice": 289,
+      "discount": 24,
+      "image": "https://http2.mlstatic.com/D_NQ_NP_2X_910778-MLA74006154625_012024-F.webp",
+      "rating": 4.9,
+      "sales": 2100,
+      "reviews": 620,
+      "category": "ferramentas",
+      "platform": "mercadolivre",
+      "url": "https://lista.mercadolivre.com.br/ferramentas/esmerilhadeira",
+      "freeShipping": true,
+      "type": "bestsellers"
+    },
+    {
+      "id": "ml-ferr-4",
+      "title": "Trena Laser Digital Profissional Alcance 40m com Nível",
+      "price": 79.9,
+      "originalPrice": 129.9,
+      "discount": 38,
+      "image": "https://http2.mlstatic.com/D_NQ_NP_2X_897587-MLB70477017245_072023-F.webp",
+      "rating": 4.6,
+      "sales": 1800,
+      "reviews": 320,
+      "category": "ferramentas",
+      "platform": "mercadolivre",
+      "url": "https://lista.mercadolivre.com.br/ferramentas/trena-laser",
+      "freeShipping": true,
+      "type": "bestsellers"
+    }
+  ]
 }

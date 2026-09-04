@@ -167,7 +167,8 @@ async function searchShopeeProducts(
 async function fetchShopeeAffiliateOffers(
   config: ShopeeOpenAPIConfig,
   keyword: string,
-  limit = 20
+  limit = 20,
+  category = 'eletronicos'
 ): Promise<Product[]> {
   const timestamp = Math.floor(Date.now() / 1000).toString();
   
@@ -234,7 +235,7 @@ async function fetchShopeeAffiliateOffers(
         rating: item.ratingStar || 0,
         sales: item.sales || 0,
         reviews: 0,
-        category: 'eletronicos',
+        category: category,
         platform: 'shopee' as const,
         url: buildAffiliateUrl(
           item.offerLink || item.productLink || buildProductUrl(item.shopId, item.itemId, item.productName),
@@ -347,14 +348,14 @@ export async function scrapeShopee(
     const seenIds = new Set<string>();
 
     for (const query of selectedQueries) {
-      let products = await fetchShopeeAffiliateOffers(config, query, 15);
+      let products = await fetchShopeeAffiliateOffers(config, query, 15, category);
       if (!products.length) {
         products = await searchShopeeProducts(config, query, 15);
       }
       for (const p of products) {
         if (!seenIds.has(p.id)) {
           seenIds.add(p.id);
-          allProducts.push(p);
+          allProducts.push({ ...p, category });
         }
       }
       await new Promise(r => setTimeout(r, 800)); // Rate limit
