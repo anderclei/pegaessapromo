@@ -53,6 +53,12 @@ const ProductCardSm = ({ promotion }: { promotion: Promotion }) => {
                    product.platform === 'mercadolivre' ? 'Mercado Livre' : 
                    product.platform === 'aliexpress' ? 'AliExpress' : 'Loja';
 
+  const formatRating = (rating: any): string => {
+    const num = Number(rating);
+    if (isNaN(num) || num <= 0) return '5.0';
+    return num.toFixed(1);
+  };
+
   const getLogo = (platform: string) => {
     switch (platform) {
       case 'amazon': return '/logos/amazon.jpg';
@@ -76,7 +82,7 @@ const ProductCardSm = ({ promotion }: { promotion: Promotion }) => {
         <div className="card-meta-top">
            <div className="product-rating">
               <span>★</span>
-              <span>{(product.rating || 0).toFixed(1)}</span>
+              <span>{formatRating(product.rating)}</span>
            </div>
            <span className="product-sales">+{(product.sales || 0)} vendidos</span>
         </div>

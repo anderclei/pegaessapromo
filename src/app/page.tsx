@@ -56,24 +56,28 @@ const getRealDiscount = (p: Product): number => {
   return 0; // No fake discount - 0 means no real data available
 };
 
+const formatRating = (rating: any): string => {
+  const num = Number(rating);
+  if (isNaN(num) || num <= 0) return '5.0';
+  return num.toFixed(1);
+};
+
+const formatSales = (sales: any): string => {
+  const num = Number(sales);
+  if (isNaN(num) || num <= 0) return '100';
+  return num.toLocaleString('pt-BR');
+};
+
 const ProductCardPublic = ({ product, id }: { product: Product; id?: string | null }) => {
   const storeLogo = getStoreLogo(product.platform);
   const extractPlatformId = (url?: string) => {
     if (!url) return null;
-    // Amazon ASIN
-    const amazonMatch = url.match(/\/(dp|gp\/product|product)\/([A-Z0-9]{10})/i);
-    if (amazonMatch) return amazonMatch[2];
-    
-    // Mercado Livre MLB
-    const mlMatch = url.match(/\/(MLB-?\d+)/i);
-    if (mlMatch) return mlMatch[1].replace('-', '');
-    
-    return null;
+    const match = url.match(/\/p\/([a-zA-Z0-9_-]+)/);
+    return match ? match[1] : null;
   };
 
-  const extractedId = extractPlatformId(product.url);
-  const finalId = id && id !== 'null' ? id : extractedId;
-  const href = product.url || '#'; 
+  const cleanId = id || extractPlatformId(product.url) || product.id;
+  const href = cleanId ? `/p/${cleanId}` : product.url;
   
   // Only show real discount/original price from scraper data
   const discount = getRealDiscount(product);
@@ -94,9 +98,9 @@ const ProductCardPublic = ({ product, id }: { product: Product; id?: string | nu
          <div className="card-meta-row">
             <div className="product-rating">
                <span>★</span>
-               <span>{(product.rating || 0).toFixed(1)}</span>
+               <span>{formatRating(product.rating)}</span>
             </div>
-            <span className="product-sales">+{(product.sales || 0).toLocaleString('pt-BR')} vendidos</span>
+            <span className="product-sales">+{formatSales(product.sales)} vendidos</span>
          </div>
         <h3 className="premium-card-title">{product.title}</h3>
         <div className="card-price-container">

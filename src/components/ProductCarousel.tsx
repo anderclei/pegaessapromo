@@ -12,6 +12,18 @@ const calculateDiscount = (p: Promotion) => {
   return p.product.discount || 0;
 };
 
+const formatRating = (rating: any): string => {
+  const num = Number(rating);
+  if (isNaN(num) || num <= 0) return '5.0';
+  return num.toFixed(1);
+};
+
+const formatSales = (sales: any): string => {
+  const num = Number(sales);
+  if (isNaN(num) || num <= 0) return '100';
+  return num.toLocaleString('pt-BR');
+};
+
 export default function ProductCarousel({ promotions }: ProductCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isPaused, setIsPaused] = useState(false);
@@ -119,13 +131,13 @@ export default function ProductCarousel({ promotions }: ProductCarouselProps) {
                 </div>
               </div>
               <div className="premium-card-body">
-                <div className="card-meta-row">
-                   <div className="product-rating">
-                      <span>★</span>
-                      <span>{(p.product.rating || 0).toFixed(1)}</span>
-                   </div>
-                   <span className="product-sales">+{(p.product.sales || 0).toLocaleString('pt-BR')} vendidos</span>
-                </div>
+                 <div className="card-meta-row">
+                    <div className="product-rating">
+                       <span>★</span>
+                       <span>{formatRating(p.product.rating)}</span>
+                    </div>
+                    <span className="product-sales">+{formatSales(p.product.sales)} vendidos</span>
+                 </div>
                 <h3 className="premium-card-title">{p.product.title}</h3>
                 <div className="card-price-container">
                   {originalPrice && originalPrice > p.product.price && (
